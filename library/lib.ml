@@ -1,0 +1,1 @@
+type library = {name: string}
