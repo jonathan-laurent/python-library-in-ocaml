@@ -1,0 +1,8 @@
+(executable
+  (name mylib_ocaml)
+  (modules mylib_ocaml)
+  (preprocess
+    (pps ppx_deriving.eq))
+  (libraries base pyml)
+  (flags :standard -linkall)
+  (modes (native shared_object)))
