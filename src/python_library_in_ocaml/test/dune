@@ -1,5 +1,7 @@
 (library
- (name ppx_python_type_test)
+ (name test)
  (libraries base)
  (inline_tests)
- (preprocess (pps ppx_jane ppx_python_type_conv)))
+ (preprocess (pps
+   ppx_jane
+   python_library_in_ocaml.ppx)))

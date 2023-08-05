@@ -67,3 +67,7 @@ end = struct
 
   and u = t
 end
+
+let%python_export f (x : int) : int = x + 1
+
+let%test_unit "f preserved" = assert (f 3 = 4)

@@ -1,3 +1,7 @@
-(library (name ppx_python_type_conv) (public_name python_library_in_ocaml.ppx_python_type) (kind ppx_deriver)
- (ppx_runtime_libraries python_library_in_ocaml pyml) (libraries base ppxlib)
+(library
+ (name ppx)
+ (public_name python_library_in_ocaml.ppx)
+ (libraries base ppxlib)
+ (kind ppx_deriver)
+ (ppx_runtime_libraries python_library_in_ocaml pyml)
  (preprocess (pps ppxlib.metaquot)))

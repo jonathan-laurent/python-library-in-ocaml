@@ -153,7 +153,24 @@ module Typedef_for_signature = struct
 end
 
 (* Exporting Python values *)
-module Py_export = struct end
+module Py_export = struct
+  let expand ~ctxt rec_flag name expr =
+    let loc = Expansion_context.Extension.extension_point_loc ctxt in
+    pstr_value ~loc rec_flag
+      [value_binding ~loc ~pat:(ppat_var ~loc (Loc.make ~loc name)) ~expr]
+
+  let extension =
+    Extension.V3.declare "python_export" Extension.Context.structure_item
+      Ast_pattern.(
+        pstr
+          ( pstr_value __ (value_binding ~pat:(ppat_var __) ~expr:__ ^:: nil)
+          ^:: nil ) )
+      expand
+end
+
+let () =
+  let rule = Context_free.Rule.extension Py_export.extension in
+  Driver.register_transformation ~rules:[rule] "my_transformation"
 
 let deriver =
   Deriving.add
