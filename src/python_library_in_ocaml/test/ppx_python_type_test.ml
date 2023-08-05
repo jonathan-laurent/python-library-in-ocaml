@@ -1,5 +1,5 @@
 open Stdio
-open Ppx_python_type_runtime
+open Python_library_in_ocaml
 
 type enum = A | B [@@deriving python_type]
 

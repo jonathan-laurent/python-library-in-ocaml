@@ -1,6 +1,0 @@
-(library
-  (name python_library_in_ocaml)
-  (modules lib)
-  (preprocess
-    (pps ppx_deriving.eq))
-  (libraries base pyml))

@@ -21,3 +21,16 @@ type python_type_def =
   | Py_Alias of string * python_type_expr
   | Py_TypedDict of (string * python_type_expr) list
 [@@deriving sexp]
+
+type python_value_signature =
+  | Py_Constant of python_type_expr
+  | Py_Function of
+      {args: (string * python_type_expr) list; ret: python_type_expr}
+[@@deriving sexp]
+
+type python_value =
+  { pyobject: (Py.Object.t[@sexp.opaque])
+  ; name: string
+  ; doc: string
+  ; signature: python_value_signature }
+[@@deriving sexp]

@@ -14,49 +14,49 @@ module Names = struct
   let convert_atomic_type_name = snake_case_to_capitalized_camel_case
 end
 
-(* Utilities for building [Ppx_python_type_runtime] expressions *)
+(* Utilities for building [Python_library_in_ocaml] expressions *)
 module Repr = struct
   let atomic ~loc = function
     | "int" ->
-        [%expr Ppx_python_type_runtime.(Py_Atomic Py_Int)]
+        [%expr Python_library_in_ocaml.(Py_Atomic Py_Int)]
     | "float" ->
-        [%expr Ppx_python_type_runtime.(Py_Atomic Py_Float)]
+        [%expr Python_library_in_ocaml.(Py_Atomic Py_Float)]
     | "string" ->
-        [%expr Ppx_python_type_runtime.(Py_Atomic Py_String)]
+        [%expr Python_library_in_ocaml.(Py_Atomic Py_String)]
     | "bool" ->
-        [%expr Ppx_python_type_runtime.(Py_Atomic Py_Bool)]
+        [%expr Python_library_in_ocaml.(Py_Atomic Py_Bool)]
     | "unit" ->
-        [%expr Ppx_python_type_runtime.(Py_Atomic Py_None)]
+        [%expr Python_library_in_ocaml.(Py_Atomic Py_None)]
     | s ->
         let custom = estring ~loc (Names.convert_atomic_type_name s) in
-        [%expr Ppx_python_type_runtime.(Py_Atomic (Py_Custom [%e custom]))]
+        [%expr Python_library_in_ocaml.(Py_Atomic (Py_Custom [%e custom]))]
 
-  let none ~loc = [%expr Ppx_python_type_runtime.(Py_Atomic Py_None)]
+  let none ~loc = [%expr Python_library_in_ocaml.(Py_Atomic Py_None)]
 
   let union ~loc asts =
-    [%expr Ppx_python_type_runtime.Py_Union [%e elist ~loc asts]]
+    [%expr Python_library_in_ocaml.Py_Union [%e elist ~loc asts]]
 
   let tuple ~loc args =
-    [%expr Ppx_python_type_runtime.Py_Tuple [%e elist ~loc args]]
+    [%expr Python_library_in_ocaml.Py_Tuple [%e elist ~loc args]]
 
-  let list ~loc arg = [%expr Ppx_python_type_runtime.Py_List [%e arg]]
+  let list ~loc arg = [%expr Python_library_in_ocaml.Py_List [%e arg]]
 
   let option ~loc arg = union ~loc [arg; none ~loc]
 
   let tagged_tuple ~loc tag arg =
     [%expr
-      Ppx_python_type_runtime.(
+      Python_library_in_ocaml.(
         Py_Tuple [Py_Literal [%e estring ~loc tag]; [%e arg]] )]
 
   let alias_decl ~loc aliased def =
     let aliased = estring ~loc (Names.convert_atomic_type_name aliased) in
-    [%expr Ppx_python_type_runtime.Py_Alias ([%e aliased], [%e def])]
+    [%expr Python_library_in_ocaml.Py_Alias ([%e aliased], [%e def])]
 
   let record_decl ~loc fields =
     let fields =
       List.map fields ~f:(fun (s, f) -> pexp_tuple ~loc [estring ~loc s; f])
     in
-    [%expr Ppx_python_type_runtime.Py_TypedDict [%e elist ~loc fields]]
+    [%expr Python_library_in_ocaml.Py_TypedDict [%e elist ~loc fields]]
 end
 
 (** Misc utilities  *)
@@ -144,13 +144,16 @@ module Typedef_for_signature = struct
     let name = python_typedef_for ptype_name.txt in
     [ psig_value ~loc
         (value_description ~loc ~name:(Loc.make ~loc name)
-           ~type_:[%type: Ppx_python_type_runtime.python_type_def] ~prim:[] ) ]
+           ~type_:[%type: Python_library_in_ocaml.python_type_def] ~prim:[] ) ]
 
   let types_declaration ~ctxt
       ((_rec_flag, type_declarations) : rec_flag * type_declaration list) =
     let loc = Expansion_context.Deriver.derived_item_loc ctxt in
     List.concat_map type_declarations ~f:(type_declaration ~loc)
 end
+
+(* Exporting Python values *)
+module Py_export = struct end
 
 let deriver =
   Deriving.add

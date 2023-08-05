@@ -1,2 +1,0 @@
-(library (name ppx_python_type_runtime) (public_name python_library_in_ocaml.ppx_python_type.runtime)
- (libraries base pyml) (preprocess (pps ppx_base)))
