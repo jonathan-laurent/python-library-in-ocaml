@@ -1,3 +1,5 @@
+(* TODO: translation of unit -> 'a functions *)
+
 open Base
 open Ppxlib
 open Ast_builder.Default
@@ -57,6 +59,17 @@ module Repr = struct
       List.map fields ~f:(fun (s, f) -> pexp_tuple ~loc [estring ~loc s; f])
     in
     [%expr Python_library_in_ocaml.Py_TypedDict [%e elist ~loc fields]]
+
+  let py_constant ~loc tyrep =
+    [%expr Python_library_in_ocaml.Py_Constant [%e tyrep]]
+
+  let py_function ~loc ~args ~ret =
+    let args =
+      List.map args ~f:(fun (s, a) -> pexp_tuple ~loc [estring ~loc s; a])
+    in
+    [%expr
+      Python_library_in_ocaml.Py_Function
+        {args= [%e elist ~loc args]; ret= [%e ret]}]
 end
 
 (** Misc utilities  *)
@@ -154,10 +167,103 @@ end
 
 (* Exporting Python values *)
 module Py_export = struct
+  (* let rec myfun = fun x -> ... *)
+
+  (* let myfun =
+      let rec myfun = fun x -> ... in
+      let pyobj = ... in
+      register ();
+      myfun *)
+
+  let rec extract_fun_type {pexp_desc; _} =
+    let open Option.Let_syntax in
+    match pexp_desc with
+    | Pexp_fun
+        ( _
+        , _
+        , { ppat_desc=
+              Ppat_constraint ({ppat_desc= Ppat_var arg_name; _}, arg_type)
+          ; _ }
+        , expr ) ->
+        let%bind args, ret = extract_fun_type expr in
+        Some ((arg_name.txt, arg_type) :: args, ret)
+    | Pexp_constraint (_, ret_type) ->
+        Some ([], ret_type)
+    | _ ->
+        None
+
+  let value_signature ~loc ~args ~ret =
+    match args with
+    | [] ->
+        Repr.py_constant ~loc (Type_for.generate ret)
+    | args ->
+        let args = List.map args ~f:(fun (s, t) -> (s, Type_for.generate t)) in
+        Repr.py_function ~loc ~args ~ret:(Type_for.generate ret)
+
+  let make_pyobject ~loc ~args ~ret ~name =
+    (* Py.Callable.of_function ~name:... ~docstring:...
+       (fun args ->
+         let arg0 = [%of_python] args.(0) in
+         ... in
+         [%python_of: ...] (f arg0...)) *)
+    let n = List.length args in
+    let lident s = Loc.make ~loc (Longident.Lident s) in
+    assert (n > 0) ;
+    let body =
+      let bindings =
+        List.mapi args ~f:(fun i (arg_name, arg_type) ->
+            value_binding ~loc
+              ~pat:(ppat_var ~loc (Loc.make ~loc arg_name))
+              ~expr:[%expr [%of_python: [%t arg_type]] args.([%e eint ~loc i])] )
+      and expr =
+        [%expr
+          [%python_of: [%t ret]]
+            [%e
+              pexp_apply ~loc
+                (pexp_ident ~loc (lident name))
+                (List.map args ~f:(fun (arg_name, _) ->
+                     (Nolabel, pexp_ident ~loc (lident arg_name)) ) )]]
+      in
+      pexp_let ~loc Nonrecursive bindings expr
+    in
+    [%expr
+      Py.Callable.of_function ~name:[%e estring ~loc name] ~docstring:""
+        (fun args ->
+          if Array.length args <> [%e eint ~loc n] then
+            failwith "incorrect number of arguments" ;
+          [%e body] )]
+
   let expand ~ctxt rec_flag name expr =
     let loc = Expansion_context.Extension.extension_point_loc ctxt in
-    pstr_value ~loc rec_flag
-      [value_binding ~loc ~pat:(ppat_var ~loc (Loc.make ~loc name)) ~expr]
+    match extract_fun_type expr with
+    | None ->
+        Location.raise_errorf ~loc "invalid function definition format"
+    | Some (args, ret) ->
+        let doc = estring ~loc "" in
+        let signature = value_signature ~loc ~args ~ret in
+        let pyobject = make_pyobject ~loc ~args ~ret ~name in
+        let name_pat = ppat_var ~loc (Loc.make ~loc name) in
+        let name_longident = Loc.make ~loc (Longident.Lident name) in
+        (* let myfun =
+            let rec myfun x y = ... in
+            let () = Python_library_in_ocaml.(register_python_value {
+              pyobject=...; name=...; doc=...; signature=...}) in
+            myfun *)
+        pstr_value ~loc Nonrecursive
+          [ value_binding ~loc ~pat:name_pat
+              ~expr:
+                (pexp_let ~loc rec_flag
+                   [value_binding ~loc ~pat:name_pat ~expr]
+                   [%expr
+                     let () =
+                       Python_library_in_ocaml.(
+                         register_python_value
+                           { pyobject= (fun () -> [%e pyobject])
+                           ; name= [%e estring ~loc name]
+                           ; doc= [%e doc]
+                           ; signature= [%e signature] } )
+                     in
+                     [%e pexp_ident ~loc name_longident]] ) ]
 
   let extension =
     Extension.V3.declare "python_export" Extension.Context.structure_item

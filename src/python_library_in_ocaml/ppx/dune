@@ -4,4 +4,4 @@
  (libraries base ppxlib)
  (kind ppx_deriver)
  (ppx_runtime_libraries python_library_in_ocaml pyml)
- (preprocess (pps ppxlib.metaquot)))
+ (preprocess (pps ppxlib.metaquot ppx_let)))

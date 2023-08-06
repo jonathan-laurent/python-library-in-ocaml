@@ -1,3 +1,4 @@
+open Base
 open Stdio
 open Python_library_in_ocaml
 
@@ -70,4 +71,28 @@ end
 
 let%python_export f (x : int) : int = x + 1
 
-let%test_unit "f preserved" = assert (f 3 = 4)
+let%python_export rec fact (n : int) : int =
+  if n <= 0 then 1 else n * fact (n - 1)
+
+let%python_export sum (l : int list) : int = List.fold_left ~f:( + ) ~init:0 l
+
+let%expect_test "registered" =
+  assert (f 5 = 6) ;
+  assert (fact 3 = 6) ;
+  assert (sum [1; 2; 3] = 6) ;
+  List.iter (registered_python_values ()) ~f:(fun v ->
+      printf !"%{sexp: python_value}\n\n" v ) ;
+  [%expect
+    {|
+    ((pyobject <opaque>) (name f) (doc "")
+     (signature
+      (Py_Function (args ((x (Py_Atomic Py_Int)))) (ret (Py_Atomic Py_Int)))))
+
+    ((pyobject <opaque>) (name fact) (doc "")
+     (signature
+      (Py_Function (args ((n (Py_Atomic Py_Int)))) (ret (Py_Atomic Py_Int)))))
+
+    ((pyobject <opaque>) (name sum) (doc "")
+     (signature
+      (Py_Function (args ((l (Py_List (Py_Atomic Py_Int)))))
+       (ret (Py_Atomic Py_Int))))) |}]

@@ -2,4 +2,4 @@
   (name python_library_in_ocaml)
   (public_name python_library_in_ocaml)
   (preprocess (pps ppx_base))
-  (libraries base pyml))
+  (libraries base pyml python_library_in_ocaml.ppx_python.runtime))
