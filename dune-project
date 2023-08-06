@@ -1,4 +1,5 @@
-(lang dune 3.3)
+(lang dune 3.10)
+(using dune_site 0.1)
 
 (generate_opam_files true)
 
@@ -7,6 +8,7 @@
 
 (package
  (name python_library_in_ocaml)
+ (sites (share templates))
  (synopsis "Utilities to write high-quality Python libraries in OCaml")
  (description "")
  (depends

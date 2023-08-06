@@ -3,7 +3,7 @@
   (modules mylib_ocaml)
   (libraries base pyml)
   (flags :standard -linkall)
-  (modes (native shared_object))
+  (modes (native shared_object) native)
   (preprocess (staged_pps
    python_library_in_ocaml.ppx
    python_library_in_ocaml.ppx_python

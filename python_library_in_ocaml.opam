@@ -5,7 +5,7 @@ description: ""
 maintainer: ["jonathan.laurent@cs.cmu.edu"]
 authors: ["Jonathan Laurent"]
 depends: [
-  "dune" {>= "3.3"}
+  "dune" {>= "3.10"}
   "pyml" {>= "20220905"}
   "dedent" {>= "0.16.0"}
   "metaquot" {>= "0.5.2"}
@@ -24,8 +24,10 @@ build: [
     name
     "-j"
     jobs
+    "--promote-install-files=false"
     "@install"
     "@runtest" {with-test}
     "@doc" {with-doc}
   ]
+  ["dune" "install" "-p" name "--create-install-files" name]
 ]

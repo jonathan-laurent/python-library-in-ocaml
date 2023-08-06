@@ -2,4 +2,8 @@
   (name python_library_in_ocaml)
   (public_name python_library_in_ocaml)
   (preprocess (pps ppx_sexp_conv))
-  (libraries base pyml python_library_in_ocaml.ppx_python.runtime))
+  (libraries base stdio pyml dune-site python_library_in_ocaml.ppx_python.runtime))
+
+(generate_sites_module
+ (module sites)
+ (sites python_library_in_ocaml))
