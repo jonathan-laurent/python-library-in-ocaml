@@ -7,7 +7,4 @@ val generate_py_stub :
   -> string
 
 val generate_pyi_stub :
-     lib_name:string
-  -> types:python_type_declaration list
-  -> values:python_value list
-  -> string
+  types:python_type_declaration list -> values:python_value list -> string

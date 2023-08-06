@@ -1,3 +1,3 @@
 (install
  (section (site (python_library_in_ocaml templates)))
- (files stub.py))
+ (files stub.py stub.pyi))

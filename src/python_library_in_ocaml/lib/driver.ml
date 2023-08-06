@@ -9,7 +9,7 @@ let interpret_command ~lib_name =
   | "generate-py" ->
       print_string (Stubs.generate_py_stub ~lib_name ~types ~values)
   | "generate-pyi" ->
-      print_string (Stubs.generate_pyi_stub ~lib_name ~types ~values)
+      print_string (Stubs.generate_pyi_stub ~types ~values)
   | _ ->
       print_endline "Invalid command."
 
