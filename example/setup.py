@@ -41,4 +41,4 @@ class build(build_py):
                 subprocess.run(["black", file])
 
 
-setup(cmdclass={"build_py": build})
+setup(cmdclass={"build_py": build}, setup_requires=["black"])
