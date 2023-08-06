@@ -7,7 +7,6 @@
 
 (package
  (name python_library_in_ocaml)
- (allow_empty) ; the project contains no library, just a *.so
  (synopsis "Utilities to write high-quality Python libraries in OCaml")
  (description "")
  (depends

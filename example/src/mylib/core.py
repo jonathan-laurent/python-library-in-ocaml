@@ -12,6 +12,9 @@ argv_t = c_char_p * 2
 argv = argv_t(DLL_NAME.encode("utf-8"), None)
 dll.caml_startup(argv)
 
-from mylib_ocaml import *  # type: ignore
+import mylib_ocaml  # type: ignore
 
-print(example_value)
+def fact(n):
+    return mylib_ocaml.fact(n)
+
+print(fact(10))

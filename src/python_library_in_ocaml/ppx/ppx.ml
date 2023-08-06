@@ -233,6 +233,14 @@ module Py_export = struct
             failwith "incorrect number of arguments" ;
           [%e body] )]
 
+  let value_binding_no_warn ~loc ~pat ~expr =
+    { pvb_pat= pat
+    ; pvb_expr= expr
+    ; pvb_loc= loc
+    ; pvb_attributes=
+        [ attribute ~loc ~name:(Loc.make ~loc "warning")
+            ~payload:(PStr [%str "-32"]) ] }
+
   let expand ~ctxt rec_flag name expr =
     let loc = Expansion_context.Extension.extension_point_loc ctxt in
     match extract_fun_type expr with
@@ -244,13 +252,13 @@ module Py_export = struct
         let pyobject = make_pyobject ~loc ~args ~ret ~name in
         let name_pat = ppat_var ~loc (Loc.make ~loc name) in
         let name_longident = Loc.make ~loc (Longident.Lident name) in
-        (* let myfun =
+        (* leta myfun =
             let rec myfun x y = ... in
             let () = Python_library_in_ocaml.(register_python_value {
               pyobject=...; name=...; doc=...; signature=...}) in
             myfun *)
         pstr_value ~loc Nonrecursive
-          [ value_binding ~loc ~pat:name_pat
+          [ value_binding_no_warn ~loc ~pat:name_pat
               ~expr:
                 (pexp_let ~loc rec_flag
                    [value_binding ~loc ~pat:name_pat ~expr]

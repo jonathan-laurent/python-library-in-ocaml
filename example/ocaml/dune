@@ -1,8 +1,10 @@
 (executable
   (name mylib_ocaml)
   (modules mylib_ocaml)
-  (preprocess
-    (pps ppx_deriving.eq))
   (libraries base pyml)
   (flags :standard -linkall)
-  (modes (native shared_object)))
+  (modes (native shared_object))
+  (preprocess (staged_pps
+   python_library_in_ocaml.ppx
+   python_library_in_ocaml.ppx_python
+   ppx_jane)))
