@@ -2,7 +2,7 @@ open Base
 open Python_library_in_ocaml
 
 type expr = Constant of int | Var of string | Add of expr * expr
-[@@deriving python, python_type]
+[@@deriving python, python_export_type]
 
 let%python_docstring eval =
   {|

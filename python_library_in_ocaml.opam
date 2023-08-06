@@ -7,7 +7,10 @@ authors: ["Jonathan Laurent"]
 depends: [
   "dune" {>= "3.3"}
   "pyml" {>= "20220905"}
-  "fmt" {>= "0.9"}
+  "dedent" {>= "0.16.0"}
+  "metaquot" {>= "0.5.2"}
+  "ppxlib" {>= "0.30.0"}
+  "base" {>= "0.16.2"}
   "odoc" {with-doc}
 ]
 build: [

@@ -1,5 +1,5 @@
 (library
   (name python_library_in_ocaml)
   (public_name python_library_in_ocaml)
-  (preprocess (pps ppx_base))
+  (preprocess (pps ppx_sexp_conv))
   (libraries base pyml python_library_in_ocaml.ppx_python.runtime))

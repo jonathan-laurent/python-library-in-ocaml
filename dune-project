@@ -11,5 +11,10 @@
  (description "")
  (depends
   (pyml (>= 20220905))
-  (fmt (>= 0.9))
+  (dedent (>= 0.16.0))
+  (metaquot (>= 0.5.2))
+  (ppxlib (>= 0.30.0))
+  (base (>= 0.16.2))
+  (ppx_sexp_conv (>= 0.16.0))
+  (ppx_let (>= 0.16.0))
  ))

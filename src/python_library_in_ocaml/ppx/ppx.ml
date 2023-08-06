@@ -1,22 +1,18 @@
-(* TODO: translation of unit -> 'a functions *)
-
 open Base
 open Ppxlib
 open Ast_builder.Default
 
 let concise_variants = false
 
-(** Naming conventions *)
+(* Naming conventions *)
 module Names = struct
-  let python_typedef_for t = "python_typedef_for_" ^ t
-
   let snake_case_to_capitalized_camel_case s =
     String.split ~on:'_' s |> List.map ~f:String.capitalize |> String.concat
 
   let convert_atomic_type_name = snake_case_to_capitalized_camel_case
 end
 
-(* Utilities for building [Python_library_in_ocaml] expressions *)
+(* Utilities for building [Python_library_in_ocaml.Repr] expressions *)
 module Repr = struct
   let atomic ~loc = function
     | "int" ->
@@ -78,7 +74,7 @@ module Repr = struct
         ; definition= Py_TypedDict [%e elist ~loc fields] }]
 end
 
-(** Misc utilities  *)
+(* Misc utilities *)
 module Utils = struct
   let longident_as_string ~loc = function
     | Longident.Lident s ->
@@ -88,11 +84,10 @@ module Utils = struct
 end
 
 open Repr
-open Names
 open Utils
 
-(* Code for the [%python_type: ...] constructs *)
-module Type_for = struct
+(* Translating between OCaml and Python types *)
+module Python_type = struct
   let rec generate {ptyp_desc; ptyp_loc= loc; _} =
     match ptyp_desc with
     | Ptyp_tuple args ->
@@ -112,13 +107,13 @@ module Type_for = struct
         Location.raise_errorf ~loc "unsupported type"
 end
 
-(* Code for compiling [@@deriving python_type] in structures *)
-module Typedef_for_structure = struct
+(* Code for registering type declarations *)
+module Python_export_type = struct
   let constructor_declaration ~loc ctor =
     match ctor with
     | {pcd_name; pcd_vars= []; pcd_args= Pcstr_tuple ts; _} -> (
         let name = pcd_name.txt in
-        let args = List.map ts ~f:Type_for.generate in
+        let args = List.map ts ~f:Python_type.generate in
         match args with
         | [] when concise_variants ->
             estring ~loc name
@@ -136,35 +131,21 @@ module Typedef_for_structure = struct
     let type_expr =
       match (ptype_kind, ptype_manifest) with
       | Ptype_abstract, Some def ->
-          alias_decl ~loc name (Type_for.generate def)
+          alias_decl ~loc name (Python_type.generate def)
       | Ptype_variant ctors, _ ->
           let args = List.map ctors ~f:(constructor_declaration ~loc) in
           alias_decl ~loc name (union ~loc args)
       | Ptype_record fields, _ ->
           let args =
             List.map fields ~f:(fun f ->
-                (f.pld_name.txt, Type_for.generate f.pld_type) )
+                (f.pld_name.txt, Python_type.generate f.pld_type) )
           in
           record_decl ~loc name args
       | _ ->
           Location.raise_errorf ~loc "unhandled construct"
     in
-    let binding = pvar ~loc (python_typedef_for name) in
-    [[%stri let [%p binding] = [%e type_expr]]]
-
-  let types_declaration ~ctxt
-      ((_rec_flag, type_declarations) : rec_flag * type_declaration list) =
-    let loc = Expansion_context.Deriver.derived_item_loc ctxt in
-    List.concat_map type_declarations ~f:(type_declaration ~loc)
-end
-
-module Typedef_for_signature = struct
-  let type_declaration ~loc {ptype_name; _} =
-    let name = python_typedef_for ptype_name.txt in
-    [ psig_value ~loc
-        (value_description ~loc ~name:(Loc.make ~loc name)
-           ~type_:[%type: Python_library_in_ocaml.python_type_declaration]
-           ~prim:[] ) ]
+    [ [%stri
+        let () = Python_library_in_ocaml.register_python_type [%e type_expr]] ]
 
   let types_declaration ~ctxt
       ((_rec_flag, type_declarations) : rec_flag * type_declaration list) =
@@ -173,7 +154,7 @@ module Typedef_for_signature = struct
 end
 
 (* Register docstrings *)
-module Py_docstring = struct
+module Python_docstring = struct
   let expand ~ctxt name docstring =
     let loc = Expansion_context.Extension.extension_point_loc ctxt in
     let docstring = Dedent.string docstring in
@@ -193,15 +174,7 @@ module Py_docstring = struct
 end
 
 (* Exporting Python values *)
-module Py_export = struct
-  (* let rec myfun = fun x -> ... *)
-
-  (* let myfun =
-      let rec myfun = fun x -> ... in
-      let pyobj = ... in
-      register ();
-      myfun *)
-
+module Python_export = struct
   let rec extract_fun_type {pexp_desc; _} =
     let open Option.Let_syntax in
     match pexp_desc with
@@ -222,10 +195,12 @@ module Py_export = struct
   let value_signature ~loc ~args ~ret =
     match args with
     | [] ->
-        Repr.py_constant ~loc (Type_for.generate ret)
+        Repr.py_constant ~loc (Python_type.generate ret)
     | args ->
-        let args = List.map args ~f:(fun (s, t) -> (s, Type_for.generate t)) in
-        Repr.py_function ~loc ~args ~ret:(Type_for.generate ret)
+        let args =
+          List.map args ~f:(fun (s, t) -> (s, Python_type.generate t))
+        in
+        Repr.py_function ~loc ~args ~ret:(Python_type.generate ret)
 
   let make_pyobject ~loc ~args ~ret ~name =
     (* Py.Callable.of_function ~name:... ~docstring:...
@@ -279,7 +254,7 @@ module Py_export = struct
         let pyobject = make_pyobject ~loc ~args ~ret ~name in
         let name_pat = ppat_var ~loc (Loc.make ~loc name) in
         let name_longident = Loc.make ~loc (Longident.Lident name) in
-        (* leta myfun =
+        (* let myfun =
             let rec myfun x y = ... in
             let () = Python_library_in_ocaml.(register_python_value {
               pyobject=...; name=...; doc=...; signature=...}) in
@@ -310,17 +285,15 @@ module Py_export = struct
 end
 
 let () =
-  let rule = Context_free.Rule.extension Py_export.extension in
+  let rule = Context_free.Rule.extension Python_export.extension in
   Driver.register_transformation ~rules:[rule] "python_export"
 
 let () =
-  let rule = Context_free.Rule.extension Py_docstring.extension in
+  let rule = Context_free.Rule.extension Python_docstring.extension in
   Driver.register_transformation ~rules:[rule] "python_docstring"
 
 let deriver =
   Deriving.add
     ~str_type_decl:
-      (Deriving.Generator.V2.make_noarg Typedef_for_structure.types_declaration)
-    ~sig_type_decl:
-      (Deriving.Generator.V2.make_noarg Typedef_for_signature.types_declaration)
-    "python_type"
+      (Deriving.Generator.V2.make_noarg Python_export_type.types_declaration)
+    "python_export_type"
