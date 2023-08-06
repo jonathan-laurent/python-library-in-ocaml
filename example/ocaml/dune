@@ -1,10 +1,8 @@
 (executable
-  (name mylib_ocaml)
-  (modules mylib_ocaml)
+  (name ocaml_module)
   (libraries base pyml)
   (flags :standard -linkall)
   (modes (native shared_object) native)
   (preprocess (staged_pps
-   python_library_in_ocaml.ppx
-   python_library_in_ocaml.ppx_python
-   ppx_jane)))
+    python_library_in_ocaml.ppx
+    python_library_in_ocaml.ppx_python)))

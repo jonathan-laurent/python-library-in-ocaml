@@ -92,12 +92,10 @@ let show_value_type_declaration ~imports v =
       in
       String.concat ~sep:"\n" ([header] @ docstring @ ["    ..."])
 
-let created_module ~lib_name = lib_name ^ "_ocaml"
-
 let type_py_stub td = td.type_name ^ " = ..."
 
-let value_py_stub ~lib_name v =
-  let mod_ = created_module ~lib_name in
+let value_py_stub ~generated v =
+  let mod_ = Create_module.internal_module ~generated in
   match v.signature with
   | Py_Constant _ ->
       Printf.sprintf "%s = %s.%s" v.name mod_ v.name
@@ -107,16 +105,19 @@ let value_py_stub ~lib_name v =
       let body = Printf.sprintf "    return %s.%s(%s)" mod_ v.name args in
       String.concat ~sep:"\n" [header; body]
 
-let generate_py_stub ~lib_name ~types ~values =
+let generate_py_stub ~lib_name ~generated ~types ~values =
   let prelude =
     In_channel.read_all (lookup_template "stub.py")
     |> Base.String.substr_replace_all ~pattern:"{LIB_NAME}" ~with_:lib_name
+    |> Base.String.substr_replace_all ~pattern:"{GENERATED}" ~with_:generated
+    |> Base.String.substr_replace_all ~pattern:"{GENERATED_BY_PYML}"
+         ~with_:(Create_module.internal_module ~generated)
   in
   let types_section =
     String.concat ~sep:"\n" (List.map types ~f:type_py_stub)
   in
   let values_section =
-    String.concat ~sep:"\n\n" (List.map values ~f:(value_py_stub ~lib_name))
+    String.concat ~sep:"\n\n" (List.map values ~f:(value_py_stub ~generated))
   in
   String.concat ~sep:"\n\n" [prelude; types_section; values_section] ^ "\n"
 

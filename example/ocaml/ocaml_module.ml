@@ -25,4 +25,4 @@ let%python_export rec fact (n : int) : int =
 
 let%python_export f (x : int) : int = x + 1
 
-let () = Python_library_in_ocaml.Driver.run ~lib_name:"mylib" ()
+let () = Python_library_in_ocaml.Driver.run ~generated:"ocaml_module" ()
