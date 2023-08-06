@@ -50,16 +50,6 @@ module Repr = struct
       Python_library_in_ocaml.(
         Py_Tuple [Py_Literal [%e estring ~loc tag]; [%e arg]] )]
 
-  let alias_decl ~loc aliased def =
-    let aliased = estring ~loc (Names.convert_atomic_type_name aliased) in
-    [%expr Python_library_in_ocaml.Py_Alias ([%e aliased], [%e def])]
-
-  let record_decl ~loc fields =
-    let fields =
-      List.map fields ~f:(fun (s, f) -> pexp_tuple ~loc [estring ~loc s; f])
-    in
-    [%expr Python_library_in_ocaml.Py_TypedDict [%e elist ~loc fields]]
-
   let py_constant ~loc tyrep =
     [%expr Python_library_in_ocaml.Py_Constant [%e tyrep]]
 
@@ -70,6 +60,22 @@ module Repr = struct
     [%expr
       Python_library_in_ocaml.Py_Function
         {args= [%e elist ~loc args]; ret= [%e ret]}]
+
+  let alias_decl ~loc aliased def =
+    let aliased = estring ~loc (Names.convert_atomic_type_name aliased) in
+    [%expr
+      Python_library_in_ocaml.
+        {type_name= [%e aliased]; definition= Py_Alias [%e def]}]
+
+  let record_decl ~loc aliased fields =
+    let aliased = estring ~loc (Names.convert_atomic_type_name aliased) in
+    let fields =
+      List.map fields ~f:(fun (s, f) -> pexp_tuple ~loc [estring ~loc s; f])
+    in
+    [%expr
+      Python_library_in_ocaml.
+        { type_name= [%e aliased]
+        ; definition= Py_TypedDict [%e elist ~loc fields] }]
 end
 
 (** Misc utilities  *)
@@ -139,7 +145,7 @@ module Typedef_for_structure = struct
             List.map fields ~f:(fun f ->
                 (f.pld_name.txt, Type_for.generate f.pld_type) )
           in
-          record_decl ~loc args
+          record_decl ~loc name args
       | _ ->
           Location.raise_errorf ~loc "unhandled construct"
     in
@@ -157,12 +163,33 @@ module Typedef_for_signature = struct
     let name = python_typedef_for ptype_name.txt in
     [ psig_value ~loc
         (value_description ~loc ~name:(Loc.make ~loc name)
-           ~type_:[%type: Python_library_in_ocaml.python_type_def] ~prim:[] ) ]
+           ~type_:[%type: Python_library_in_ocaml.python_type_declaration]
+           ~prim:[] ) ]
 
   let types_declaration ~ctxt
       ((_rec_flag, type_declarations) : rec_flag * type_declaration list) =
     let loc = Expansion_context.Deriver.derived_item_loc ctxt in
     List.concat_map type_declarations ~f:(type_declaration ~loc)
+end
+
+(* Register docstrings *)
+module Py_docstring = struct
+  let expand ~ctxt name docstring =
+    let loc = Expansion_context.Extension.extension_point_loc ctxt in
+    let docstring = Dedent.string docstring in
+    [%stri
+      let () =
+        Python_library_in_ocaml.register_python_docstring
+          ~name:[%e estring ~loc name] ~docstring:[%e estring ~loc docstring]]
+
+  let extension =
+    Extension.V3.declare "python_docstring" Extension.Context.structure_item
+      Ast_pattern.(
+        pstr
+          ( pstr_value drop
+              (value_binding ~pat:(ppat_var __) ~expr:(estring __) ^:: nil)
+          ^:: nil ) )
+      expand
 end
 
 (* Exporting Python values *)
@@ -284,7 +311,11 @@ end
 
 let () =
   let rule = Context_free.Rule.extension Py_export.extension in
-  Driver.register_transformation ~rules:[rule] "my_transformation"
+  Driver.register_transformation ~rules:[rule] "python_export"
+
+let () =
+  let rule = Context_free.Rule.extension Py_docstring.extension in
+  Driver.register_transformation ~rules:[rule] "python_docstring"
 
 let deriver =
   Deriving.add

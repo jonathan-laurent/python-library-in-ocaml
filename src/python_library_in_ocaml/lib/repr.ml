@@ -17,9 +17,13 @@ type python_type_expr =
   | Py_Union of python_type_expr list
 [@@deriving sexp]
 
-type python_type_def =
-  | Py_Alias of string * python_type_expr
+type python_type_definition =
+  | Py_Alias of python_type_expr
   | Py_TypedDict of (string * python_type_expr) list
+[@@deriving sexp]
+
+type python_type_declaration =
+  {type_name: string; definition: python_type_definition}
 [@@deriving sexp]
 
 type python_value_signature =

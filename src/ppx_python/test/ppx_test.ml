@@ -38,12 +38,12 @@ let%expect_test "t" =
   in
   List.iter items ~f:(fun (key, value) ->
     printf "%s: %s\n%!" key (Py.Object.to_string value));
-  [%expect {|
+  [%expect{|
     field_a: 42
     field_b: foobar |}];
   let t = t_of_python pyobject in
   printf !"%{Sexp}\n%!" (sexp_of_t t);
-  [%expect {| ((field_a 42)(field_b foobar)) |}]
+  [%expect{| ((field_a 42)(field_b foobar)) |}]
 ;;
 
 let%expect_test "v" =
@@ -52,13 +52,12 @@ let%expect_test "v" =
   let pyobject = python_of_v v in
   let v = v_of_python pyobject in
   printf !"%{Sexp}\n%!" (sexp_of_v v);
-  [%expect {|
-    (D((field_a 42)(field_b foobar))pi) |}];
+  [%expect{| (D((field_a 42)(field_b foobar))pi) |}];
   let v = E { x = 42; y = "foobar" } in
   let pyobject = python_of_v v in
   let v = v_of_python pyobject in
   printf !"%{Sexp}\n%!" (sexp_of_v v);
-  [%expect {| (E(x 42)(y foobar)) |}]
+  [%expect{| (E(x 42)(y foobar)) |}]
 ;;
 
 module M : sig
@@ -83,8 +82,7 @@ let%expect_test "M.u" =
   let pyobject = M.python_of_u python_of_int v in
   let v = M.u_of_python int_of_python pyobject in
   printf !"%{sexp:int M.u}\n%!" v;
-  [%expect {|
-  (B 12) |}]
+  [%expect{| (B 12) |}]
 ;;
 
 type 'a w =
@@ -98,8 +96,7 @@ let%expect_test "w" =
   let pyobject = python_of_w python_of_int v in
   let v = w_of_python int_of_python pyobject in
   printf !"%{sexp:int w}\n%!" v;
-  [%expect {|
-    (Multi (1 2 3 4)) |}]
+  [%expect{| (Multi (1 2 3 4)) |}]
 ;;
 
 type 'a tree =
@@ -113,8 +110,7 @@ let%expect_test "tree" =
   let pyobject = python_of_tree python_of_string v in
   let v = tree_of_python string_of_python pyobject in
   printf !"%{sexp:string tree}\n%!" v;
-  [%expect {|
-    (Node (Leaf test) (Node (Leaf foo) (Leaf bar))) |}]
+  [%expect{| (Node (Leaf test) (Node (Leaf foo) (Leaf bar))) |}]
 ;;
 
 (* Check that unused type variables are not an issue. *)
@@ -134,8 +130,7 @@ let%expect_test "type-var" =
     z2_of_python (fun _ -> assert false) pyobject
   in
   printf !"%d %d\n%!" (round_trip1 42) (round_trip2 42);
-  [%expect {|
-    42 42 |}]
+  [%expect{| 42 42 |}]
 ;;
 
 module type Test = sig
@@ -180,8 +175,7 @@ let%expect_test "runtime-types" =
       ; option = Some None
       }
     ];
-  [%expect
-    {|
+  [%expect{|
     ((bool true) (int 42) (float 3.1415) (string foobar) (array ((1 one)))
      (list ()) (option ()))
     ((bool true) (int 1337) (float 2.71828) (string another-string) (array ())
@@ -203,31 +197,31 @@ let%expect_test "of-python-errors" =
     if success then failwith "an exception was expected"
   in
   expect_exn (fun () -> ignore (t_of_python (Py.String.of_string "test") : t));
-  [%expect {| ocaml exn: (Failure "not a python dict test") |}];
+  [%expect{| ocaml exn: (Failure "not a python dict test") |}];
   expect_exn (fun () -> ignore (t_of_python (python_of_v A)));
-  [%expect {| ocaml exn: (Failure "not a python dict ('A', None)") |}];
+  [%expect{| ocaml exn: (Failure "not a python dict ('A', None)") |}];
   expect_exn (fun () ->
     ignore
       (t_of_python (python_of_u { foo = 1, 2; bar = { field_a = 1; field_b = "test" } })));
-  [%expect {| ocaml exn: (Failure "cannot find field field_b in dict") |}]
+  [%expect{| ocaml exn: (Failure "cannot find field field_b in dict") |}]
 ;;
 
 let%expect_test "python_of-of_python" =
   if not (Py.is_initialized ()) then Py.initialize ~version:3 ();
   let pyobject = [%python_of: int * float] (42, 1.337) in
   print_endline (Py.Object.to_string pyobject);
-  [%expect {| (42, 1.337) |}];
+  [%expect{| (42, 1.337) |}];
   let forty_two, pi = [%of_python: int * float] pyobject in
   printf "%d %.3f\n%!" forty_two pi;
-  [%expect {| 42 1.337 |}];
+  [%expect{| 42 1.337 |}];
   let pyobject =
     [%python_of: int list * t] ([ 3; 1; 4; 1; 5 ], { field_a = 42; field_b = "foo" })
   in
   print_endline (Py.Object.to_string pyobject);
-  [%expect {| ([3, 1, 4, 1, 5], {'field_a': 42, 'field_b': 'foo'}) |}];
+  [%expect{| ([3, 1, 4, 1, 5], {'field_a': 42, 'field_b': 'foo'}) |}];
   let list, t = [%of_python: int list * t] pyobject in
   printf !"%{sexp:int list} %{sexp:t}\n%!" list t;
-  [%expect {| (3 1 4 1 5) ((field_a 42) (field_b foo)) |}]
+  [%expect{| (3 1 4 1 5) ((field_a 42) (field_b foo)) |}]
 ;;
 
 type t_with_default =
@@ -241,10 +235,10 @@ let%expect_test "default" =
   let t_with_default = { field_a = 42; field_b = "bar" } in
   let pyobject = python_of_t_with_default t_with_default in
   print_endline (Py.Object.to_string pyobject);
-  [%expect {| {'field_a': 42, 'field_b': 'bar'} |}];
+  [%expect{| {'field_a': 42, 'field_b': 'bar'} |}];
   let t_with_default = t_with_default_of_python pyobject in
   printf !"%{sexp:t_with_default}\n%!" t_with_default;
-  [%expect {| ((field_a 42) (field_b bar)) |}];
+  [%expect{| ((field_a 42) (field_b bar)) |}];
   let pyobject = Py.Dict.create () in
   Py.Dict.set_item_string pyobject "field_a" (python_of_int 1337);
   let t_with_default = t_with_default_of_python pyobject in
@@ -264,7 +258,7 @@ let%expect_test "option" =
   let t_with_option = { field_a = 42; field_b = Some ("foo", 3.14); field_c = None } in
   let pyobject = python_of_t_with_option t_with_option in
   print_endline (Py.Object.to_string pyobject);
-  [%expect {| {'field_a': 42, 'field_b': ('foo', 3.14)} |}];
+  [%expect{| {'field_a': 42, 'field_b': ('foo', 3.14)} |}];
   let t_with_option = t_with_option_of_python pyobject in
   printf !"%{sexp:t_with_option}\n%!" t_with_option;
   [%expect{| ((field_a 42) (field_b ((foo 3.14))) (field_c ())) |}];
@@ -287,7 +281,7 @@ let%expect_test "python-of" =
   let t = { foo = 42; bar = Some 3.1415 } in
   let pyobject = python_of_t_python_of t in
   print_endline (Py.Object.to_string pyobject);
-  [%expect {| {'foo': 42, 'bar': 3.1415} |}]
+  [%expect{| {'foo': 42, 'bar': 3.1415} |}]
 ;;
 
 type t_of_python =
@@ -303,7 +297,7 @@ let%expect_test "python-of" =
   Py.Dict.set_item_string pyobject "bar" (python_of_float 2.71828182846);
   let t = t_of_python_of_python pyobject in
   printf !"%{sexp:t_of_python}\n%!" t;
-  [%expect {| ((foo 1337) (bar (2.71828182846))) |}]
+  [%expect{| ((foo 1337) (bar (2.71828182846))) |}]
 ;;
 
 module _ : sig
@@ -332,8 +326,7 @@ end = struct
         let pyobject = python_of_l python_of_string l in
         print_endline (Py.Object.to_string pyobject);
         printf !"%{sexp:string l}\n%!" (l_of_python string_of_python pyobject));
-    [%expect
-      {|
+    [%expect{|
       Empty
       ('Empty', None)
       Empty
@@ -362,8 +355,7 @@ end = struct
         let pyobject = python_of_int_tree tree in
         print_endline (Py.Object.to_string pyobject);
         printf !"%{sexp:int_tree}\n%!" (int_tree_of_python pyobject));
-    [%expect
-      {|
+    [%expect{|
       (Leaf 42)
       ('Leaf', (42,))
       (Leaf 42)
@@ -396,8 +388,7 @@ end = struct
     let pyobject = python_of_t t in
     print_endline (Py.Object.to_string pyobject);
     printf !"%{sexp:t}\n%!" (t_of_python pyobject);
-    [%expect
-      {|
+    [%expect{|
       (App (Base 42) (Lam (App (Base 299792458) (Lam (Base 1337)))))
       ('App', (('Base', (42,)), ('Lam', (('App', (('Base', (299792458,)), ('Lam', (('Base', (1337,)),)))),))))
       (App (Base 42) (Lam (App (Base 299792458) (Lam (Base 1337))))) |}]
@@ -423,8 +414,7 @@ end = struct
       let pyobject = python_of_t t in
       print_endline (Py.Object.to_string pyobject);
       printf !"%{sexp:t}\n%!" (t_of_python pyobject));
-    [%expect
-      {|
+    [%expect{|
       A
       ('A', None)
       A
@@ -453,8 +443,7 @@ end = struct
       let pyobject = python_of_u u in
       print_endline (Py.Object.to_string pyobject);
       printf !"%{sexp:u}\n%!" (u_of_python pyobject));
-    [%expect
-      {|
+    [%expect{|
       ((foo A) (bar c))
       {'foo': ('A', None), 'bar': ('c', None)}
       ((foo A) (bar c))
@@ -474,15 +463,14 @@ end = struct
     let pyobject = python_of_tree t in
     print_endline (Py.Object.to_string pyobject);
     printf !"%{sexp:tree}\n%!" (tree_of_python pyobject);
-    [%expect
-      {|
+    [%expect{|
       (Node (1 ((Node (2 ())) (Node (3 ())) (Node (4 ((Node (5 ()))))))))
       ('Node', (1, [('Node', (2, [])), ('Node', (3, [])), ('Node', (4, [('Node', (5, []))]))]))
       (Node (1 ((Node (2 ())) (Node (3 ())) (Node (4 ((Node (5 ())))))))) |}];
     let t2 = `Node (42, [ t; t; t; t ]) in
     let t = `Node (1337, [ t; t2; t ]) in
     printf !"%d" (Stdlib.compare (tree_of_python (python_of_tree t)) t);
-    [%expect {| 0 |}]
+    [%expect{| 0 |}]
   ;;
 end
 
@@ -523,8 +511,7 @@ module _ = struct
     Py.Dict.del_item_string pyobject "field_b";
     printf !"%{sexp:t_allow Or_error.t}\n%!" (try_extract t_allow_of_python);
     printf !"%{sexp:t_disallow Or_error.t}\n%!" (try_extract t_disallow_of_python);
-    [%expect
-      {|
+    [%expect{|
       (Ok ((field_a 42) (field_b aturing)))
       (Error (Failure "unexpected extra field names 'field_c'"))
       (Ok ((field_a 42) (field_b aturing)))
@@ -568,8 +555,7 @@ module _ = struct
       ; "f_c", python_of_float 3.141592
       ];
     extract_and_print [ "f_a", python_of_int 1; "f_c", python_of_float 3.141592 ];
-    [%expect
-      {|
+    [%expect{|
       (Ok ((f_a 1) (f_b barfoo) (f_c 3.141592)))
       (Error (Failure "unexpected extra field names 'f_bb'"))
       (Error (Failure "unexpected extra field names 'f_bb'"))
@@ -611,13 +597,11 @@ end = struct
     print_endline (Py.Object.to_string f);
     print_endline (Py.Object.to_string b);
     print_endline (Py.Object.to_string custom_python);
-    [%expect
-      {|
-        ('A', (1,))
-        ('B', (1.0,))
-        ('C', (False,))
-        ('A', (5,))
-    |}];
+    [%expect{|
+      ('A', (1,))
+      ('B', (1.0,))
+      ('C', (False,))
+      ('A', (5,)) |}];
     (* Test t_of_python conversions *)
     let i = int_template_of_python i in
     let f = float_template_of_python f in
@@ -631,11 +615,10 @@ end = struct
     printf
       !"%{Sexp}\n%!"
       (sexp_of_template Custom.sexp_of_t sexp_of_float sexp_of_bool custom);
-    [%expect {|
-        (A 1)
-        (B 1)
-        (C false)
-        (A 5)
-    |}]
+    [%expect{|
+      (A 1)
+      (B 1)
+      (C false)
+      (A 5) |}]
   ;;
 end
