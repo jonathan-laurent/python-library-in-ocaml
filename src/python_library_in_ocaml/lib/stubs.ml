@@ -13,7 +13,14 @@ let lookup_template filename =
   |> Option.value_exn ~message:("Not found: templates/" ^ filename)
 
 type imports =
-  {mutable literal: bool; mutable type_alias: bool; mutable typed_dict: bool}
+  { mutable literal: bool
+  ; mutable type_alias: bool
+  ; mutable typed_dict: bool
+  ; type_vars: string Queue.t }
+
+let add_quotes s = "\"" ^ s ^ "\""
+
+let quote_opt ~quote s = if quote then add_quotes s else s
 
 let show_atomic_type ~quote = function
   | Py_Bool ->
@@ -27,39 +34,53 @@ let show_atomic_type ~quote = function
   | Py_None ->
       "None"
   | Py_Custom s ->
-      if quote then "\"" ^ s ^ "\"" else s
+      quote_opt ~quote s
 
-let show_type_expr ~imports t =
-  let rec aux = function
+let show_type_expr ~quote ~imports t =
+  let rec aux ~quote = function
+    | Py_Var s ->
+        Queue.enqueue imports.type_vars s ;
+        s
+    | Py_Apply (ctor, ts) ->
+        quote_opt ~quote
+          ( show_atomic_type ~quote:false ctor
+          ^ "["
+          ^ String.concat ~sep:", " (List.map ts ~f:(aux ~quote:false))
+          ^ "]" )
     | Py_Atomic a ->
-        show_atomic_type ~quote:true a
+        show_atomic_type ~quote a
     | Py_Tuple ts ->
-        "tuple[" ^ String.concat ~sep:", " (List.map ts ~f:aux) ^ "]"
+        "tuple[" ^ String.concat ~sep:", " (List.map ts ~f:(aux ~quote)) ^ "]"
     | Py_List t ->
-        "list[" ^ aux t ^ "]"
+        "list[" ^ aux ~quote t ^ "]"
     | Py_Literal s ->
         imports.literal <- true ;
         "Literal[\"" ^ s ^ "\"]"
     | Py_Union ts ->
         assert (not (List.is_empty ts)) ;
-        String.concat ~sep:" | " (List.map ts ~f:aux)
+        String.concat ~sep:" | " (List.map ts ~f:(aux ~quote))
   in
-  aux t
+  aux ~quote t
 
-let show_type_declaration ~imports td =
+let show_type_declaration ~quote ~imports td =
   match td.definition with
   | Py_Alias t ->
       imports.type_alias <- true ;
       Printf.sprintf "%s: TypeAlias = %s" td.type_name
-        (show_type_expr ~imports t)
+        (show_type_expr ~quote ~imports t)
   | Py_TypedDict fields ->
       imports.typed_dict <- true ;
       let header =
-        Printf.sprintf "class %s(TypedDict, total=True):" td.type_name
+        if List.is_empty td.type_vars then
+          Printf.sprintf "class %s(TypedDict, total=True):" td.type_name
+        else
+          Printf.sprintf "class %s(TypedDict, Generic[%s], total=True):"
+            td.type_name
+            (String.concat ~sep:", " td.type_vars)
       in
       let fields =
         List.map fields ~f:(fun (name, t) ->
-            Printf.sprintf "    %s: %s" name (show_type_expr ~imports t) )
+            Printf.sprintf "    %s: %s" name (show_type_expr ~quote ~imports t) )
       in
       String.concat ~sep:"\n" (header :: fields)
 
@@ -69,19 +90,19 @@ let indent s =
   |> String.concat_lines
   |> fun s -> String.drop_suffix s 1 (* remove trailing \n *)
 
-let show_value_type_declaration ~imports v =
+let show_value_type_declaration ~quote ~imports v =
   match v.signature with
   | Py_Constant t ->
-      Printf.sprintf "%s: %s = ..." v.name (show_type_expr ~imports t)
+      Printf.sprintf "%s: %s = ..." v.name (show_type_expr ~quote ~imports t)
   | Py_Function {args; ret} ->
       let args =
         String.concat ~sep:", "
           (List.map args ~f:(fun (a, t) ->
-               Printf.sprintf "%s: %s" a (show_type_expr ~imports t) ) )
+               Printf.sprintf "%s: %s" a (show_type_expr ~quote ~imports t) ) )
       in
       let header =
         Printf.sprintf "def %s(%s) -> %s:" v.name args
-          (show_type_expr ~imports ret)
+          (show_type_expr ~quote ~imports ret)
       in
       let docstring =
         match Register.registered_python_docstring v.name with
@@ -126,15 +147,36 @@ let show_imports ~imports =
   if imports.type_alias then Queue.enqueue to_import "TypeAlias" ;
   if imports.typed_dict then Queue.enqueue to_import "TypedDict" ;
   if imports.literal then Queue.enqueue to_import "Literal" ;
+  if not (Queue.is_empty imports.type_vars) then
+    Queue.enqueue to_import "TypeVar" ;
   let to_import = Queue.to_list to_import in
-  if List.is_empty to_import then []
-  else ["from typing import " ^ String.concat ~sep:", " to_import]
+  let import_stmts =
+    if List.is_empty to_import then []
+    else ["from typing import " ^ String.concat ~sep:", " to_import]
+  in
+  let type_vars_defs =
+    Queue.to_list imports.type_vars
+    |> List.dedup_and_sort ~compare:String.compare
+    |> List.map ~f:(fun v -> Printf.sprintf "%s = TypeVar(\"%s\")" v v)
+  in
+  import_stmts @ type_vars_defs
 
 let generate_pyi_stub ~types ~values =
-  let imports = {literal= false; type_alias= false; typed_dict= false} in
+  let quote = true in
+  let imports =
+    { literal= false
+    ; type_alias= false
+    ; typed_dict= false
+    ; type_vars= Queue.create () }
+  in
   let prelude = In_channel.read_all (lookup_template "stub.pyi") in
-  let types_section = List.map types ~f:(show_type_declaration ~imports) in
-  let val_section = List.map values ~f:(show_value_type_declaration ~imports) in
+  let types_section =
+    List.map types ~f:(show_type_declaration ~quote ~imports)
+  in
+  let values_section =
+    List.map values ~f:(show_value_type_declaration ~quote ~imports)
+  in
   let imports = show_imports ~imports in
-  String.concat ~sep:"\n\n" ([prelude] @ imports @ types_section @ val_section)
+  String.concat ~sep:"\n\n"
+    ([prelude] @ imports @ types_section @ values_section)
   ^ "\n"

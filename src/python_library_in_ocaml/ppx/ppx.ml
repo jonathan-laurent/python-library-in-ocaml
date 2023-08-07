@@ -10,6 +10,8 @@ module Names = struct
     String.split ~on:'_' s |> List.map ~f:String.capitalize |> String.concat
 
   let convert_atomic_type_name = snake_case_to_capitalized_camel_case
+
+  let convert_type_var = snake_case_to_capitalized_camel_case
 end
 
 (* Utilities for building [Python_library_in_ocaml.Repr] expressions *)
@@ -30,6 +32,16 @@ module Repr = struct
         [%expr Python_library_in_ocaml.(Py_Atomic (Py_Custom [%e custom]))]
 
   let none ~loc = [%expr Python_library_in_ocaml.(Py_Atomic Py_None)]
+
+  let type_var ~loc name =
+    let name = Names.convert_type_var name in
+    [%expr Python_library_in_ocaml.Py_Var [%e estring ~loc name]]
+
+  let type_apply ~loc ctor exprs =
+    let ctor = Names.convert_type_var ctor in
+    [%expr
+      Python_library_in_ocaml.(
+        Py_Apply (Py_Custom [%e estring ~loc ctor], [%e elist ~loc exprs]) )]
 
   let union ~loc asts =
     [%expr Python_library_in_ocaml.Py_Union [%e elist ~loc asts]]
@@ -57,21 +69,29 @@ module Repr = struct
       Python_library_in_ocaml.Py_Function
         {args= [%e elist ~loc args]; ret= [%e ret]}]
 
-  let alias_decl ~loc aliased def =
-    let aliased = estring ~loc (Names.convert_atomic_type_name aliased) in
-    [%expr
-      Python_library_in_ocaml.
-        {type_name= [%e aliased]; definition= Py_Alias [%e def]}]
+  let alias ~loc def = [%expr Python_library_in_ocaml.Py_Alias [%e def]]
 
-  let record_decl ~loc aliased fields =
-    let aliased = estring ~loc (Names.convert_atomic_type_name aliased) in
+  let typed_dict ~loc fields =
     let fields =
       List.map fields ~f:(fun (s, f) -> pexp_tuple ~loc [estring ~loc s; f])
     in
+    [%expr Python_library_in_ocaml.Py_TypedDict [%e elist ~loc fields]]
+
+  let type_decl ~loc ~name ~vars def =
+    let name = estring ~loc (Names.convert_atomic_type_name name) in
+    let vars =
+      elist ~loc
+        (List.map vars ~f:(fun v -> estring ~loc (Names.convert_type_var v)))
+    in
     [%expr
       Python_library_in_ocaml.
-        { type_name= [%e aliased]
-        ; definition= Py_TypedDict [%e elist ~loc fields] }]
+        {type_name= [%e name]; type_vars= [%e vars]; definition= [%e def]}]
+
+  let alias_decl ~loc ~name ~vars def =
+    type_decl ~loc ~name ~vars (alias ~loc def)
+
+  let record_decl ~loc ~name ~vars fields =
+    type_decl ~loc ~name ~vars (typed_dict ~loc fields)
 end
 
 (* Misc utilities *)
@@ -90,6 +110,8 @@ open Utils
 module Python_type = struct
   let rec generate {ptyp_desc; ptyp_loc= loc; _} =
     match ptyp_desc with
+    | Ptyp_var v ->
+        type_var ~loc v
     | Ptyp_tuple args ->
         tuple ~loc (List.map args ~f:generate)
     | Ptyp_constr (t, args) -> (
@@ -101,8 +123,8 @@ module Python_type = struct
             option ~loc (generate arg)
         | "list", [arg] ->
             list ~loc (generate arg)
-        | _ ->
-            Location.raise_errorf ~loc "unsupported type" )
+        | ctor, args ->
+            type_apply ~loc ctor (List.map ~f:generate args) )
     | _ ->
         Location.raise_errorf ~loc "unsupported type"
 end
@@ -126,21 +148,26 @@ module Python_export_type = struct
     | _ ->
         Location.raise_errorf ~loc "unsupported variant type"
 
-  let type_declaration ~loc {ptype_name; ptype_kind; ptype_manifest; _} =
+  let as_type_var {ptyp_desc; _} =
+    match ptyp_desc with Ptyp_var s -> s | _ -> assert false
+
+  let type_declaration ~loc
+      {ptype_name; ptype_kind; ptype_manifest; ptype_params; _} =
     let name : string = ptype_name.txt in
+    let vars = List.map ptype_params ~f:(fun (t, _) -> as_type_var t) in
     let type_expr =
       match (ptype_kind, ptype_manifest) with
       | Ptype_abstract, Some def ->
-          alias_decl ~loc name (Python_type.generate def)
+          alias_decl ~loc ~name ~vars (Python_type.generate def)
       | Ptype_variant ctors, _ ->
           let args = List.map ctors ~f:(constructor_declaration ~loc) in
-          alias_decl ~loc name (union ~loc args)
+          alias_decl ~loc ~name ~vars (union ~loc args)
       | Ptype_record fields, _ ->
           let args =
             List.map fields ~f:(fun f ->
                 (f.pld_name.txt, Python_type.generate f.pld_type) )
           in
-          record_decl ~loc name args
+          record_decl ~loc ~name ~vars args
       | _ ->
           Location.raise_errorf ~loc "unhandled construct"
     in

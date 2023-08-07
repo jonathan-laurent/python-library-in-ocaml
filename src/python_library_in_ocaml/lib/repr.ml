@@ -10,6 +10,8 @@ type python_atomic_type =
 [@@deriving sexp]
 
 type python_type_expr =
+  | Py_Var of string
+  | Py_Apply of python_atomic_type * python_type_expr list
   | Py_Atomic of python_atomic_type
   | Py_Tuple of python_type_expr list
   | Py_List of python_type_expr
@@ -23,7 +25,7 @@ type python_type_definition =
 [@@deriving sexp]
 
 type python_type_declaration =
-  {type_name: string; definition: python_type_definition}
+  {type_name: string; type_vars: string list; definition: python_type_definition}
 [@@deriving sexp]
 
 type python_value_signature =

@@ -8,7 +8,7 @@ DLL_NAME = "{GENERATED}.so"
 
 dll_resource = files("{LIB_NAME}.bin").joinpath(DLL_NAME)
 with as_file(dll_resource) as dll_file:
-    dll = PyDLL(dll_file, RTLD_LOCAL)
+    dll = PyDLL(str(dll_file), RTLD_LOCAL)
 
 argv_t = c_char_p * 3
 argv = argv_t(DLL_NAME.encode("utf-8"), b"register", None)

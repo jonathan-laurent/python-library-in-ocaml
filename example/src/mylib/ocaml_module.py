@@ -8,7 +8,7 @@ DLL_NAME = "ocaml_module.so"
 
 dll_resource = files("mylib.bin").joinpath(DLL_NAME)
 with as_file(dll_resource) as dll_file:
-    dll = PyDLL(dll_file, RTLD_LOCAL)
+    dll = PyDLL(str(dll_file), RTLD_LOCAL)
 
 argv_t = c_char_p * 3
 argv = argv_t(DLL_NAME.encode("utf-8"), b"register", None)
@@ -18,6 +18,8 @@ import _ocaml_module_internals  # type: ignore
 
 
 Expr = ...
+Result = ...
+CustommerData = ...
 
 
 def eval(valuation, expr):
@@ -28,5 +30,5 @@ def fact(n):
     return _ocaml_module_internals.fact(n)
 
 
-def f(x):
-    return _ocaml_module_internals.f(x)
+def custommer_data(name):
+    return _ocaml_module_internals.custommer_data(name)
