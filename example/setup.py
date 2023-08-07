@@ -27,7 +27,7 @@ class build(build_py):
         # Copy the shared library binary
         dll = f"{GENERATED_MODULE}.so"
         bin_path = join("src", lib_name, "bin")
-        os.makedirs(join(lib_name, "bin"), exist_ok=True)
+        os.makedirs(bin_path, exist_ok=True)
         shutil.copy(join(dune_build, dll), bin_path)
         os.chmod(join(bin_path, dll), 0o666)
         # Generate stubs
