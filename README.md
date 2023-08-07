@@ -5,7 +5,7 @@ This library allows generating high-quality Python bindings of OCaml libraries, 
 ## Installation
 
 ```sh
-opam pin add -y python_library_in_ocaml https://github.com/jonathan-laurent/python-library-in-ocaml.gith
+opam pin add -y python_library_in_ocaml https://github.com/jonathan-laurent/python-library-in-ocaml.git
 ```
 
 ## Building the example
