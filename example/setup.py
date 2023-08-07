@@ -20,7 +20,7 @@ class build(build_py):
             print("Unable to infer the library name.")
             exit(1)
         lib_name = m.group(1)
-        # Use dune to build the OCaml library and copy it in the src/bin directory
+        # Use dune to build the OCaml library and copy it in src/bin
         proc = subprocess.run(["dune", "build", "--root", "ocaml"])
         assert proc.returncode == 0, "Error building the OCaml library."
         dune_build = join("ocaml", "_build", "default")
