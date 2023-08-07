@@ -2,7 +2,8 @@
 
 To build the example:
 
-```
+```sh
+dune build
 dune install python_library_in_ocaml
 cd example
 pip install -e .
@@ -14,5 +15,6 @@ python -m mylib.test
 - [ ] Support exporting constants
 - [ ] Support optional and keyword-only arguments
 - [ ] Compile `unit -> int` function to `() -> int` in Python
-- [ ] Add utility build a pyobject and export it manually
+- [ ] Add utilities to build a pyobject and export it manually
 - [ ] Concise variant encoding in `ppx_python`
+- [ ] Functional callbacks and arrow types
