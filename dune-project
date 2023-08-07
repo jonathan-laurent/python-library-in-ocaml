@@ -10,6 +10,7 @@
 (package
  (name python_library_in_ocaml)
  (sites (share templates))
+ (source (github "jonathan-laurent/python-library-in-ocaml"))
  (synopsis "Utilities to write high-quality Python libraries in OCaml")
  (description "")
  (depends

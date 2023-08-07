@@ -4,6 +4,9 @@ synopsis: "Utilities to write high-quality Python libraries in OCaml"
 description: ""
 maintainer: ["jonathan.laurent@cs.cmu.edu"]
 authors: ["Jonathan Laurent"]
+homepage: "https://github.com/jonathan-laurent/python-library-in-ocaml"
+bug-reports:
+  "https://github.com/jonathan-laurent/python-library-in-ocaml/issues"
 depends: [
   "dune" {>= "3.10"}
   "pyml" {>= "20220905"}
@@ -31,3 +34,5 @@ build: [
   ]
   ["dune" "install" "-p" name "--create-install-files" name]
 ]
+dev-repo:
+  "git+https://github.com/jonathan-laurent/python-library-in-ocaml.git"
