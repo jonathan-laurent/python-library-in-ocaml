@@ -96,11 +96,11 @@ end
 
 (* Misc utilities *)
 module Utils = struct
-  let longident_as_string ~loc = function
-    | Longident.Lident s ->
+  let ignore_longident_prefix ~loc = function
+    | Longident.Lident s | Longident.Ldot (_, s) ->
         s
-    | _ ->
-        Location.raise_errorf ~loc "no qualified identifier is allowed"
+    | Longident.Lapply _ ->
+        Location.raise_errorf ~loc "Longident.Lapply is not allowed"
 end
 
 open Repr
@@ -115,7 +115,7 @@ module Python_type = struct
     | Ptyp_tuple args ->
         tuple ~loc (List.map args ~f:generate)
     | Ptyp_constr (t, args) -> (
-        let t = longident_as_string ~loc t.txt in
+        let t = ignore_longident_prefix ~loc t.txt in
         match (t, args) with
         | _, [] ->
             atomic ~loc t

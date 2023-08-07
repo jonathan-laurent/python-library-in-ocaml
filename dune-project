@@ -1,6 +1,7 @@
 (lang dune 3.10)
 (using dune_site 0.1)
 
+(name python_library_in_ocaml)
 (generate_opam_files true)
 
 (authors "Jonathan Laurent")
