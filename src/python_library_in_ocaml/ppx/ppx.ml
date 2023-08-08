@@ -174,10 +174,21 @@ module Python_export_type = struct
     [ [%stri
         let () = Python_library_in_ocaml.register_python_type [%e type_expr]] ]
 
+  let type_declaration_if_not_opaque ~loc decl =
+    (* In a definition such as type t = M.t [@opaque], we should not
+       export any type declaration. *)
+    match (decl.ptype_kind, decl.ptype_manifest) with
+    | Ptype_abstract, Some {ptyp_attributes; _}
+      when List.exists ptyp_attributes ~f:(fun a ->
+               String.equal a.attr_name.txt "opaque" ) ->
+        []
+    | _ ->
+        type_declaration ~loc decl
+
   let types_declaration ~ctxt
       ((_rec_flag, type_declarations) : rec_flag * type_declaration list) =
     let loc = Expansion_context.Deriver.derived_item_loc ctxt in
-    List.concat_map type_declarations ~f:(type_declaration ~loc)
+    List.concat_map type_declarations ~f:(type_declaration_if_not_opaque ~loc)
 end
 
 (* Register docstrings *)

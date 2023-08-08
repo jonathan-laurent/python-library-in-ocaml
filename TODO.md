@@ -1,5 +1,7 @@
 ## Planned Features
 
+- [x] Do not export opaque type declarations
+- [ ] Add docstrings in stub.py
 - [ ] Support ppx_import
 - [ ] Support exporting constants
 - [ ] Support optional and keyword-only arguments
