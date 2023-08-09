@@ -39,15 +39,6 @@ let rec type_expr {ptyp_desc; ptyp_loc= loc; _} =
   | _ ->
       Location.raise_errorf ~loc "unsupported type"
 
-let value_signature ~args ~ret =
-  match args with
-  | [] ->
-      Repr.Constant (type_expr ret)
-  | args ->
-      Repr.Function
-        { args= List.map (fun (s, t) -> (s, type_expr t)) args
-        ; ret= type_expr ret }
-
 module Type_declaration = struct
   let constructor_declaration ~loc {pcd_name; pcd_vars; pcd_args; _} =
     if List.length pcd_vars > 0 then
@@ -138,12 +129,22 @@ module Value_declaration_expander = struct
         ( pstr_value __ (value_binding ~pat:(ppat_var __) ~expr:__ ^:: nil)
         ^:: nil ) )
 
+  let value_signature ~args ~ret =
+    match args with
+    | [] ->
+        Repr.Constant (type_expr ret)
+    | args ->
+        Repr.Function
+          { args= List.map (fun (s, t) -> (s, type_expr t)) args
+          ; ret= type_expr ret }
+
   let extension ~name f =
     Extension.V3.declare name Extension.Context.structure_item pattern
       (fun ~ctxt rec_flag name expr ->
         let loc = Expansion_context.Extension.extension_point_loc ctxt in
         let args, ret = expand ~loc expr in
-        f ~loc ~rec_flag ~name ~args ~ret ~expr )
+        let signature = value_signature ~args ~ret in
+        f ~loc ~rec_flag ~name ~args ~ret ~signature ~expr )
 end
 
 let register_type_declaration_deriver ~name f =

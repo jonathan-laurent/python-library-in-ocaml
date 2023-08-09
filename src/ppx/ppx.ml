@@ -122,10 +122,8 @@ let value_binding_no_warn ~loc ~pat ~expr =
       [ attribute ~loc ~name:(Loc.make ~loc "warning")
           ~payload:(PStr [%str "-32"]) ] }
 
-let python_export ~loc ~rec_flag ~name ~args ~ret ~expr =
-  let signature =
-    Repr_rewriter.value_signature ~args ~ret |> Renaming.rename_value_signature
-  in
+let python_export ~loc ~rec_flag ~name ~args ~ret ~signature ~expr =
+  let signature = Renaming.rename_value_signature signature in
   match args with
   | [] ->
       Location.raise_errorf ~loc "Constant exportation not implemented"
