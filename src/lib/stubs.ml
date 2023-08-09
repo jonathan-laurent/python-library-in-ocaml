@@ -120,7 +120,9 @@ let show_dataclass_record_declaration ~env ~name ~vars fields =
   let header =
     let gen =
       if List.is_empty vars then ""
-      else Printf.sprintf "(Generic[%s])" (String.concat ~sep:", " vars)
+      else (
+        Env.ensure_imported env Generic ;
+        Printf.sprintf "(Generic[%s])" (String.concat ~sep:", " vars) )
     in
     Printf.sprintf "@dataclass\nclass %s%s:" name gen
   in
