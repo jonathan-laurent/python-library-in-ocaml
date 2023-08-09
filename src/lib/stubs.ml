@@ -1,5 +1,7 @@
 open Base
 
+[@@@warning "-37"]
+
 type settings = {use_dataclasses: bool}
 
 let templates_locations = Sites.Sites.templates
@@ -29,10 +31,6 @@ module Env = struct
       Queue.enqueue env.type_vars var
 end
 
-let concat sep strs = String.concat ~sep strs
-
-let fmt = Printf.sprintf
-
 let imported_source = function
   | Literal ->
       ("typing", "Literal")
@@ -45,7 +43,7 @@ let imported_source = function
   | Dataclass ->
       ("dataclasses", "dataclass")
   | Enum ->
-      ("enum", "Enum")
+      ("enums", "Enum")
 
 let add_quotes s = "\"" ^ s ^ "\""
 
@@ -170,26 +168,69 @@ let indent s =
   |> fun s -> String.drop_suffix s 1
 (* remove trailing \n *)
 
-(* let show_value_declaration ~quote ~imports v =
-   let open Repr in
-   match v.signature with
-   | Constant t ->
-       Printf.sprintf "%s: %s = ..." v.name (show_type_expr ~quote ~imports t)
-   | Py_Function {args; ret} ->
-       let args =
-         String.concat ~sep:", "
-           (List.map args ~f:(fun (a, t) ->
-                Printf.sprintf "%s: %s" a (show_type_expr ~quote ~imports t) ) )
-       in
-       let header =
-         Printf.sprintf "def %s(%s) -> %s:" v.name args
-           (show_type_expr ~quote ~imports ret)
-       in
-       let docstring =
-         match Register.registered_python_docstring v.name with
-         | None ->
-             []
-         | Some doc ->
-             [indent ("\"\"\"\n" ^ doc ^ "\n\"\"\"")]
-       in
-       String.concat ~sep:"\n" ([header] @ docstring @ ["    ..."]) *)
+let show_value_declaration ~env ~quote ~generated v =
+  let open Repr in
+  let mod_ = Create_module.internal_module ~generated in
+  match v.signature with
+  | Constant t ->
+      Printf.sprintf "%s: %s = ..." v.name (show_type_expr ~env ~quote t)
+  | Function {args; ret} ->
+      let args_untyped =
+        String.concat ~sep:", " (List.map args ~f:(fun (a, _) -> a))
+      in
+      let args_typed =
+        String.concat ~sep:", "
+          (List.map args ~f:(fun (a, t) ->
+               Printf.sprintf "%s: %s" a (show_type_expr ~env ~quote t) ) )
+      in
+      let header =
+        Printf.sprintf "def %s(%s) -> %s:" v.name args_typed
+          (show_type_expr ~env ~quote ret)
+      in
+      let docstring =
+        match Register.registered_python_docstring v.name with
+        | None ->
+            []
+        | Some doc ->
+            [indent ("\"\"\"\n" ^ doc ^ "\n\"\"\"")]
+      in
+      let body =
+        Printf.sprintf "    return %s.%s(%s)" mod_ v.name args_untyped
+      in
+      String.concat ~sep:"\n" ([header] @ docstring @ [body])
+
+let show_imports ~env =
+  let import_stmts =
+    env.Env.imports |> Queue.to_list
+    |> List.map ~f:imported_source
+    |> List.sort_and_group ~compare:(fun (m, _) (m', _) -> String.compare m m')
+    |> List.map ~f:(fun grouped ->
+           let m = fst (List.hd_exn grouped) in
+           let args = List.map ~f:snd grouped |> String.concat ~sep:", " in
+           Printf.sprintf "from %s import %s" m args )
+  in
+  let type_vars_defs =
+    Queue.to_list env.Env.type_vars
+    |> List.dedup_and_sort ~compare:String.compare
+    |> List.map ~f:(fun v -> Printf.sprintf "%s = TypeVar(\"%s\")" v v)
+  in
+  import_stmts @ type_vars_defs
+
+let generate_py_stub ~settings ~lib_name ~generated ~types ~values =
+  let prelude =
+    Stdio.In_channel.read_all (lookup_template "stub.py")
+    |> Base.String.substr_replace_all ~pattern:"{LIB_NAME}" ~with_:lib_name
+    |> Base.String.substr_replace_all ~pattern:"{GENERATED}" ~with_:generated
+    |> Base.String.substr_replace_all ~pattern:"{GENERATED_BY_PYML}"
+         ~with_:(Create_module.internal_module ~generated)
+  in
+  let env = Env.create () in
+  let types_section =
+    List.map types ~f:(show_type_declaration ~settings ~env ~quote:true)
+  in
+  let values_section =
+    List.map values ~f:(show_value_declaration ~env ~quote:false ~generated)
+  in
+  let imports = show_imports ~env in
+  String.concat ~sep:"\n\n"
+    ([prelude] @ imports @ types_section @ values_section @ ["\n"])
