@@ -14,8 +14,31 @@ let lookup_template filename =
     templates_locations
   |> Option.value_exn ~message:("Not found: templates/" ^ filename)
 
-type imports = Literal | TypeAlias | TypedDict | Generic | Dataclass | Enum
+type imports =
+  | Literal
+  | TypeAlias
+  | TypedDict
+  | TypeVar
+  | Generic
+  | Dataclass
+  | Enum
 [@@deriving eq]
+
+let imported_source = function
+  | Literal ->
+      ("typing", "Literal")
+  | TypeAlias ->
+      ("typing", "TypeAlias")
+  | TypedDict ->
+      ("typing", "TypedDict")
+  | TypeVar ->
+      ("typing", "TypeVar")
+  | Generic ->
+      ("typing", "Generic")
+  | Dataclass ->
+      ("dataclasses", "dataclass")
+  | Enum ->
+      ("enums", "Enum")
 
 module Env = struct
   type t = {imports: imports Queue.t; type_vars: string Queue.t}
@@ -27,23 +50,10 @@ module Env = struct
       Queue.enqueue env.imports import
 
   let add_typevar env var =
+    ensure_imported env TypeVar ;
     if not (Queue.mem ~equal:String.equal env.type_vars var) then
       Queue.enqueue env.type_vars var
 end
-
-let imported_source = function
-  | Literal ->
-      ("typing", "Literal")
-  | TypeAlias ->
-      ("typing", "TypeAlias")
-  | TypedDict ->
-      ("typing", "TypedDict")
-  | Generic ->
-      ("typing", "Generic")
-  | Dataclass ->
-      ("dataclasses", "dataclass")
-  | Enum ->
-      ("enums", "Enum")
 
 let add_quotes s = "\"" ^ s ^ "\""
 

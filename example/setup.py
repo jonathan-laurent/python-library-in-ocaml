@@ -30,20 +30,19 @@ class build(build_py):
         os.makedirs(bin_path, exist_ok=True)
         shutil.copy(join(dune_build, dll), bin_path)
         os.chmod(join(bin_path, dll), 0o666)
-        # Generate stubs
-        for ext in ["py", "pyi"]:
-            generator = join(dune_build, f"{GENERATED_MODULE}.exe")
-            cmd = [generator, f"generate-{ext}", "--lib-name", lib_name]
-            proc = subprocess.run(cmd, text=True, stdout=subprocess.PIPE)
-            if proc.returncode != 0:
-                print(proc.stdout)
-                print("Error generating Python stubs.")
-            file = join("src", lib_name, f"{GENERATED_MODULE}.{ext}")
-            with open(file, "w") as f:
-                f.write(proc.stdout)
-            # Format the stubs with black
-            if shutil.which("black") is not None:
-                subprocess.run(["black", file])
+        # Generate the Python stub
+        generator = join(dune_build, f"{GENERATED_MODULE}.exe")
+        cmd = [generator, f"generate-py", "--lib-name", lib_name]
+        proc = subprocess.run(cmd, text=True, stdout=subprocess.PIPE)
+        if proc.returncode != 0:
+            print(proc.stdout)
+            print("Error generating Python stubs.")
+        file = join("src", lib_name, f"{GENERATED_MODULE}.py")
+        with open(file, "w") as f:
+            f.write(proc.stdout)
+        # Format the stubs with black
+        if shutil.which("black") is not None:
+            subprocess.run(["black", file])
 
 
 setup(cmdclass={"build_py": build}, setup_requires=["black"])

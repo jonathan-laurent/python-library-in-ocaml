@@ -17,18 +17,37 @@ dll.caml_startup(argv)
 import _ocaml_module_internals  # type: ignore
 
 
-Expr = ...
-Result = ...
-CustommerData = ...
+from typing import Literal, TypeAlias, TypeVar, TypedDict
+
+A = TypeVar("A")
+
+Expr: TypeAlias = (
+    tuple[Literal["Constant"], tuple[int]]
+    | tuple[Literal["Var"], tuple[str]]
+    | tuple[Literal["Add"], tuple["Expr", "Expr"]]
+)
+
+Result: TypeAlias = (
+    tuple[Literal["Result"], tuple[A]] | tuple[Literal["Error"], tuple[str]]
+)
 
 
-def eval(valuation, expr):
+class CustommerData(TypedDict, total=True):
+    age: int
+    gender: str
+
+
+def eval(valuation: list[tuple[str, int]], expr: Expr) -> int | None:
+    """
+    Evaluate an expression given a valuation that maps variables
+    to values. Return None if a variable does not appear in the valuation.
+    """
     return _ocaml_module_internals.eval(valuation, expr)
 
 
-def fact(n):
+def fact(n: int) -> int:
     return _ocaml_module_internals.fact(n)
 
 
-def custommer_data(name):
+def custommer_data(name: str) -> Result[CustommerData]:
     return _ocaml_module_internals.custommer_data(name)
