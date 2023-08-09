@@ -5,7 +5,7 @@ This library allows generating high-quality Python bindings of OCaml libraries, 
 ## Installation
 
 ```sh
-opam pin add -y python_library_in_ocaml https://github.com/jonathan-laurent/python-library-in-ocaml.git
+opam pin add -y python-libgen https://github.com/jonathan-laurent/python-libgen.git
 ```
 
 ## Building the example
@@ -14,7 +14,7 @@ To build the example:
 
 ```sh
 dune build
-dune install python_library_in_ocaml
+dune install python-libgen
 cd example
 pip install -e .
 python -m mylib.test

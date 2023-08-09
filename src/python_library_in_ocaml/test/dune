@@ -1,8 +1,0 @@
-(library
- (name test)
- (libraries base stdio)
- (inline_tests)
- (preprocess (staged_pps
-   python_library_in_ocaml.ppx
-   python_library_in_ocaml.ppx_python
-   ppx_jane)))

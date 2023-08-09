@@ -4,14 +4,14 @@ synopsis: "Utilities to write high-quality Python libraries in OCaml"
 description: ""
 maintainer: ["jonathan.laurent@cs.cmu.edu"]
 authors: ["Jonathan Laurent"]
-homepage: "https://github.com/jonathan-laurent/python-library-in-ocaml"
-bug-reports:
-  "https://github.com/jonathan-laurent/python-library-in-ocaml/issues"
+homepage: "https://github.com/jonathan-laurent/python-libgen"
+bug-reports: "https://github.com/jonathan-laurent/python-libgen/issues"
 depends: [
   "dune" {>= "3.10"}
   "pyml" {>= "20220905"}
   "dedent" {>= "0.16.0"}
   "metaquot" {>= "0.5.2"}
+  "ppx_python" {>= "0.16.0"}
   "ppxlib" {>= "0.30.0"}
   "base" {>= "0.16.2"}
   "ppx_sexp_conv" {>= "0.16.0"}
@@ -34,5 +34,4 @@ build: [
   ]
   ["dune" "install" "-p" name "--create-install-files" name]
 ]
-dev-repo:
-  "git+https://github.com/jonathan-laurent/python-library-in-ocaml.git"
+dev-repo: "git+https://github.com/jonathan-laurent/python-libgen.git"
