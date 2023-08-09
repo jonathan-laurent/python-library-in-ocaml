@@ -152,8 +152,8 @@ let python_export ~loc ~rec_flag ~name ~args ~ret ~signature ~expr =
       let name_longident = Loc.make ~loc (Longident.Lident name) in
       (* let myfun =
          let rec myfun x y = ... in
-         let () = Python_library_in_ocaml.(register_python_value {
-           pyobject=...; name=...; doc=...; signature=...}) in
+         let () = Python_libgen.(register_python_value {
+           convert=...; name=...; doc=...; signature=...}) in
          myfun *)
       pstr_value ~loc Nonrecursive
         [ value_binding_no_warn ~loc ~pat:name_pat
