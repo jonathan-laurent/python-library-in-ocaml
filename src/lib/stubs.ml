@@ -1,7 +1,5 @@
 open Base
 
-[@@@warning "-37"]
-
 type settings = {use_dataclasses: bool}
 
 let templates_locations = Sites.Sites.templates
@@ -38,7 +36,7 @@ let imported_source = function
   | Dataclass ->
       ("dataclasses", "dataclass")
   | Enum ->
-      ("enums", "Enum")
+      ("enum", "Enum")
 
 module Env = struct
   type t = {imports: imports Queue.t; type_vars: string Queue.t}
@@ -117,13 +115,59 @@ let show_typed_dict_record_declaration ~env ~name ~vars fields =
   in
   String.concat ~sep:"\n" (header :: fields)
 
-let show_dataclass_record_declaration ~env:_ ~name:_ ~vars:_ _fields =
-  assert false
+let show_dataclass_record_declaration ~env ~name ~vars fields =
+  Env.ensure_imported env Dataclass ;
+  let header =
+    let gen =
+      if List.is_empty vars then ""
+      else Printf.sprintf "(Generic[%s])" (String.concat ~sep:", " vars)
+    in
+    Printf.sprintf "@dataclass\nclass %s%s:" name gen
+  in
+  let fields =
+    if List.is_empty fields then [Printf.sprintf "    pass"]
+    else
+      List.map fields ~f:(fun (name, t) ->
+          Printf.sprintf "    %s: %s" name (show_type_expr ~env ~quote:true t) )
+  in
+  String.concat ~sep:"\n" (header :: fields)
 
-let show_enum_declaration ~env:_ ~name:_ ~vars:_ _cases = assert false
+let show_enum_declaration ~env ~name ~vars cases =
+  assert (List.is_empty vars) ;
+  Env.ensure_imported env Enum ;
+  let header = Printf.sprintf "class %s(Enum):" name in
+  let fields =
+    List.map cases ~f:(fun s -> Printf.sprintf "    %s = \"%s\"" s s)
+  in
+  String.concat ~sep:"\n" (header :: fields)
 
-let show_dataclass_variant_declaration ~env:_ ~name:_ ~vars:_ _cases =
-  assert false
+let show_dataclass_variant_declaration ~env ~name ~vars cases =
+  Env.ensure_imported env Dataclass ;
+  let kids =
+    List.map cases ~f:(fun (ctor, args) ->
+        let fields =
+          match args with
+          | Repr.Labeled fields ->
+              fields
+          | Repr.Anonymous [] ->
+              []
+          | Repr.Anonymous [x] ->
+              [("arg", x)]
+          | Repr.Anonymous xs ->
+              [("args", Repr.Tuple xs)]
+        in
+        show_dataclass_record_declaration ~env ~name:ctor ~vars fields )
+  in
+  let vars_s = String.concat ~sep:", " vars in
+  let vars_s = if String.is_empty vars_s then "" else "[" ^ vars_s ^ "]" in
+  let union =
+    show_type_alias ~env ~name
+      (String.concat ~sep:" | "
+         (List.map
+            ~f:(fun (ctor, _) -> Printf.sprintf "%s%s" ctor vars_s)
+            cases ) )
+  in
+  String.concat ~sep:"\n\n" (kids @ [union])
 
 let dump_labels =
   let open Repr in
