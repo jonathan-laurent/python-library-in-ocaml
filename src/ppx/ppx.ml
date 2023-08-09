@@ -74,6 +74,25 @@ module Renaming = struct
     {convert; name; signature= rename_value_signature signature}
 end
 
+module Python_docstring = struct
+  let expand ~ctxt name docstring =
+    let loc = Expansion_context.Extension.extension_point_loc ctxt in
+    let docstring = Dedent.string docstring in
+    [%stri
+      let () =
+        Python_libgen.register_python_docstring ~name:[%e estring ~loc name]
+          ~docstring:[%e estring ~loc docstring]]
+
+  let extension =
+    Extension.V3.declare "python_docstring" Extension.Context.structure_item
+      Ast_pattern.(
+        pstr
+          ( pstr_value drop
+              (value_binding ~pat:(ppat_var __) ~expr:(estring __) ^:: nil)
+          ^:: nil ) )
+      expand
+end
+
 let python_type_export ~loc declaration =
   let declaration = Renaming.rename_type_declaration declaration in
   [ [%stri
@@ -156,4 +175,6 @@ let () =
   Repr_rewriter.register_type_declaration_deriver ~name:"python_export_type"
     python_type_export ;
   Repr_rewriter.register_value_declaration_expander ~name:"python_export"
-    python_export
+    python_export ;
+  let rule = Context_free.Rule.extension Python_docstring.extension in
+  Driver.register_transformation ~rules:[rule] "python_docstring"
