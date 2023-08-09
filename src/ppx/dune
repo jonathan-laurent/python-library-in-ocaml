@@ -4,4 +4,4 @@
  (libraries base dedent ppxlib python-libgen)
  (kind ppx_rewriter)
  (ppx_runtime_libraries python-libgen pyml)
- (preprocess (pps ppxlib.metaquot ppx_let)))
+ (preprocess (pps ppxlib.metaquot)))
