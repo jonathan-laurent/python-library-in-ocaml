@@ -8,12 +8,13 @@ homepage: "https://github.com/jonathan-laurent/python-libgen"
 bug-reports: "https://github.com/jonathan-laurent/python-libgen/issues"
 depends: [
   "dune" {>= "3.10"}
-  "pyml" {>= "20220905"}
-  "dedent" {>= "0.16.0"}
-  "metaquot" {>= "0.5.2"}
-  "ppx_python" {>= "0.16.0"}
-  "ppxlib" {>= "0.30.0"}
   "base" {>= "0.16.2"}
+  "dedent" {>= "0.16.0"}
+  "pyml" {>= "20220905"}
+  "ppxlib" {>= "0.30.0"}
+  "metaquot" {>= "0.5.2"}
+  "dune-site" {>= "3.10.0"}
+  "ppx_python" {>= "0.16.0"}
   "ppx_sexp_conv" {>= "0.16.0"}
   "ppx_let" {>= "0.16.0"}
   "odoc" {with-doc}

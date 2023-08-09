@@ -3,4 +3,4 @@
   (libraries base pyml)
   (flags :standard -linkall)
   (modes (native shared_object) native)
-  (preprocess (pps python-libgen.ppx)))
+  (preprocess (pps python-libgen.ppx ppx_python)))
