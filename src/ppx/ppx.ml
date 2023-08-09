@@ -70,7 +70,7 @@ module Renaming = struct
           { args= List.map ~f:(fun (s, t) -> (s, rename_type_expr t)) args
           ; ret= rename_type_expr ret }
 
-  let rename_value {convert; name; signature} =
+  let _rename_value {convert; name; signature} =
     {convert; name; signature= rename_value_signature signature}
 end
 
