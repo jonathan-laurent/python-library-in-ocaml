@@ -153,7 +153,7 @@ let python_export ~loc ~rec_flag ~name ~args ~ret ~signature ~expr =
                    [%e pexp_ident ~loc name_longident]] ) ]
 
 let () =
-  Repr_rewriter.register_type_declaration_deriver ~name:"python_type_export"
+  Repr_rewriter.register_type_declaration_deriver ~name:"python_export_type"
     python_type_export ;
   Repr_rewriter.register_value_declaration_expander ~name:"python_export"
     python_export

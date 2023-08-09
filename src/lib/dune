@@ -2,7 +2,7 @@
   (name python_libgen)
   (public_name python-libgen)
   (preprocess (pps ppx_sexp_conv))
-  (libraries base stdio pyml dune-site))
+  (libraries base stdio pyml dune-site ppx_python.runtime))
 
 (generate_sites_module
  (module sites)
