@@ -242,67 +242,51 @@ let indent s =
   |> fun s -> String.drop_suffix s 1
 (* remove trailing \n *)
 
-(* TODO: We have to make a conversion: to_dataclass and from_dataclass *)
-
-(* If t = u and u {..., ...} *)
-
-(* u -> s ->  *)
-
-(* t = dataclass[A, B] *)
-(*
-let _make_tuple = function
+let make_tuple = function
   | [] ->
       "()"
   | [x] ->
       "(" ^ x ^ ",)"
   | xs ->
-      "(" ^ String.concat ~sep:", " xs ^ ")" *)
+      "(" ^ String.concat ~sep:", " xs ^ ")"
 
-(* let rec _make_cond_chain = function
-   | [] ->
-       assert false
-   | [(_, x)] ->
-       x
-   | (c, x) :: cxs ->
-       Printf.sprintf "%s if %s else %s" x c (make_cond_chain cxs) *)
+let t_of_ocaml t = "_" ^ t ^ "_of_ocaml"
+
+let ocaml_of_t t = "_" ^ "ocaml_of_" ^ t
+
+let funcall name args = name ^ "(" ^ String.concat ~sep:", " args ^ ")"
 
 (* First step: resolution: *)
 
-(* let rec to_dataclass ~env ~tvars var t =
-     (* TODO: if no custom data-type anywhere, we let as-is... *)
-     let open Repr in
-     match t with
-     | Var v ->
-         to_dataclass ~env ~tvars var
-           (List.Assoc.find_exn ~equal:String.equal tvars v)
-     | Atomic a -> (
-       match a with
-       | Int | Bool | Float | String | Unit ->
-           var
-       | Custom u ->
-           assert false )
-     | App (ctor, ts) ->
-         (* Same case than above... *)
-         assert false
-     | Tuple ts ->
-         make_tuple
-         @@ List.mapi ts ~f:(fun i t ->
-                to_dataclass ~env ~tvars (Printf.sprintf "%s[%d]" var i) t )
-     | List t | Array t ->
-         (* TODO: possibly unsound with nested lists *)
-         (* Not sure: [d for d in d for d in d] seems to be valid *)
-         let elt = "__elt" in
-         Printf.sprintf "[%s for %s in %s]"
-           (to_dataclass ~env ~tvars elt t)
-           elt var
-     | Option t ->
-         (* None if var is None else ()  *)
-         Printf.sprintf "None if %s is None else %s" var
-           (to_dataclass ~env ~tvars var t)
+let rec of_ocaml ~env var t =
+  let open Repr in
+  match t with
+  | Var v ->
+      funcall (t_of_ocaml v) [var]
+  | App (ctor, ts) -> (
+    match ctor with
+    | Int | Bool | Float | String | Unit ->
+        var
+    | Custom u ->
+        let x = "x" in
+        funcall (t_of_ocaml u)
+          ( var
+          :: List.map ts ~f:(fun t ->
+                 Printf.sprintf "(lambda %s: %s)" x (of_ocaml ~env x t) ) ) )
+  | Tuple ts ->
+      make_tuple
+      @@ List.mapi ts ~f:(fun i t ->
+             of_ocaml ~env (Printf.sprintf "%s[%d]" var i) t )
+  | List t | Array t ->
+      (* TODO: possibly unsound with nested lists *)
+      (* Not sure: [d for d in d for d in d] seems to be valid *)
+      let elt = "_elt" in
+      Printf.sprintf "[%s for %s in %s]" (of_ocaml ~env elt t) elt var
+  | Option t ->
+      (* None if var is None else ()  *)
+      Printf.sprintf "None if %s is None else %s" var (of_ocaml ~env var t)
 
-   and custom_to_dataclass ~env ~tvars var t t_args = assert false *)
-
-let show_value_declaration ~env ~quote ~generated v =
+let show_value_declaration ~settings ~env ~quote ~generated v =
   let open Repr in
   let mod_ = Create_module.internal_module ~generated in
   match v.signature with
@@ -329,7 +313,13 @@ let show_value_declaration ~env ~quote ~generated v =
             [indent ("\"\"\"\n" ^ doc ^ "\n\"\"\"")]
       in
       let body =
-        Printf.sprintf "    return %s.%s(%s)" mod_ v.name args_untyped
+        if settings.use_dataclasses then
+          let ret_var = "_ret" in
+          String.concat ~sep:"\n"
+            [ Printf.sprintf "    %s = %s.%s(%s)" ret_var mod_ v.name
+                args_untyped
+            ; Printf.sprintf "    return %s" (of_ocaml ~env ret_var ret) ]
+        else Printf.sprintf "    return %s.%s(%s)" mod_ v.name args_untyped
       in
       String.concat ~sep:"\n" ([header] @ docstring @ [body])
 
@@ -363,7 +353,8 @@ let generate_py_stub ~settings ~lib_name ~generated ~types ~values =
     List.map types ~f:(show_type_declaration ~settings ~env ~quote:true)
   in
   let values_section =
-    List.map values ~f:(show_value_declaration ~env ~quote:false ~generated)
+    List.map values
+      ~f:(show_value_declaration ~settings ~env ~quote:false ~generated)
   in
   let imports = show_imports ~env in
   String.concat ~sep:"\n\n"

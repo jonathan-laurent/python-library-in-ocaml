@@ -36,6 +36,14 @@ let%python_export f (x : int) : int = x + 1
 let%python_export rec fact (n : int) : int =
   if n <= 0 then 1 else n * fact (n - 1)
 
+let%python_export two_poly (a : int) (b : string) :
+    (int, string) polymorphic * (string, int) polymorphic =
+  ({x= a; y= b}, {x= b; y= a})
+
+let%python_export list_poly (a : int) (b : string) :
+    (int, string) polymorphic list =
+  [{x= a; y= b}; {x= a; y= b}]
+
 let%python_docstring fact =
   {|
       Compute the factorial of an integer number.
@@ -167,6 +175,12 @@ let%expect_test "python stub without dataclasses" =
         """
         return _core_internals.fact(n)
 
+    def two_poly(a: int, b: str) -> tuple[Polymorphic[int, str], Polymorphic[str, int]]:
+        return _core_internals.two_poly(a, b)
+
+    def list_poly(a: int, b: str) -> list[Polymorphic[int, str]]:
+        return _core_internals.list_poly(a, b)
+
     def sum(l: list[int]) -> int:
         return _core_internals.sum(l)
 
@@ -258,17 +272,29 @@ let%expect_test "python stub with dataclasses" =
     LocatedName: TypeAlias = "WithLoc[str]"
 
     def f(x: int) -> int:
-        return _core_internals.f(x)
+        _ret = _core_internals.f(x)
+        return _ret
 
     def fact(n: int) -> int:
         """
         Compute the factorial of an integer number.
         Return 1 on negative inputs.
         """
-        return _core_internals.fact(n)
+        _ret = _core_internals.fact(n)
+        return _ret
+
+    def two_poly(a: int, b: str) -> tuple[Polymorphic[int, str], Polymorphic[str, int]]:
+        _ret = _core_internals.two_poly(a, b)
+        return (_Polymorphic_of_ocaml(_ret[0], (lambda x: x), (lambda x: x)), _Polymorphic_of_ocaml(_ret[1], (lambda x: x), (lambda x: x)))
+
+    def list_poly(a: int, b: str) -> list[Polymorphic[int, str]]:
+        _ret = _core_internals.list_poly(a, b)
+        return [_Polymorphic_of_ocaml(_elt, (lambda x: x), (lambda x: x)) for _elt in _ret]
 
     def sum(l: list[int]) -> int:
-        return _core_internals.sum(l)
+        _ret = _core_internals.sum(l)
+        return _ret
 
     def make_record(x: int) -> RecordType:
-        return _core_internals.make_record(x) |}]
+        _ret = _core_internals.make_record(x)
+        return _RecordType_of_ocaml(_ret) |}]
