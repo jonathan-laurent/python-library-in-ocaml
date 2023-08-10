@@ -1,5 +1,7 @@
 open Base
 
+[@@@warning "-32"]
+
 type settings = {use_dataclasses: bool}
 
 let templates_locations = Sites.Sites.templates
@@ -39,9 +41,15 @@ let imported_source = function
       ("enum", "Enum")
 
 module Env = struct
-  type t = {imports: imports Queue.t; type_vars: string Queue.t}
+  type t =
+    { imports: imports Queue.t
+    ; type_vars: string Queue.t
+    ; types: Repr.type_declaration Hashtbl.M(String).t }
 
-  let create () = {imports= Queue.create (); type_vars= Queue.create ()}
+  let create () =
+    { imports= Queue.create ()
+    ; type_vars= Queue.create ()
+    ; types= Hashtbl.create (module String) }
 
   let ensure_imported env import =
     if not (Queue.mem ~equal:equal_imports env.imports import) then
@@ -51,6 +59,15 @@ module Env = struct
     ensure_imported env TypeVar ;
     if not (Queue.mem ~equal:String.equal env.type_vars var) then
       Queue.enqueue env.type_vars var
+
+  let add_type env td =
+    if Hashtbl.mem env.types td.Repr.type_name then
+      failwith (Printf.sprintf "Type %s is already defined" td.Repr.type_name) ;
+    Hashtbl.add_exn env.types ~key:td.Repr.type_name ~data:td
+
+  let lookup_type env name =
+    Hashtbl.find env.types name
+    |> Option.value_exn ~message:(Printf.sprintf "Type %s is not defined" name)
 end
 
 let add_quotes s = "\"" ^ s ^ "\""
@@ -78,14 +95,14 @@ let show_type_expr ~env ~quote t =
   let rec aux ~quote = function
     | Var s ->
         Env.add_typevar env s ; s
+    | App (ctor, []) ->
+        show_atomic_type ~quote ctor
     | App (ctor, ts) ->
         quote_opt ~quote
           ( show_atomic_type ~quote:false ctor
           ^ "["
           ^ String.concat ~sep:", " (List.map ts ~f:(aux ~quote:false))
           ^ "]" )
-    | Atomic a ->
-        show_atomic_type ~quote a
     | Tuple ts ->
         "tuple[" ^ String.concat ~sep:", " (List.map ts ~f:(aux ~quote)) ^ "]"
     | List t | Array t ->
@@ -199,6 +216,7 @@ let show_union_variant_declaration ~env ~name ~vars:_ cases =
 let show_type_declaration ~settings ~env ~quote td =
   let open Repr in
   let name = td.type_name and vars = td.type_vars in
+  Env.add_type env td ;
   match td.definition with
   | Alias t ->
       show_type_alias ~env ~name (show_type_expr ~env ~quote t)
@@ -223,6 +241,66 @@ let indent s =
   |> String.concat_lines
   |> fun s -> String.drop_suffix s 1
 (* remove trailing \n *)
+
+(* TODO: We have to make a conversion: to_dataclass and from_dataclass *)
+
+(* If t = u and u {..., ...} *)
+
+(* u -> s ->  *)
+
+(* t = dataclass[A, B] *)
+(*
+let _make_tuple = function
+  | [] ->
+      "()"
+  | [x] ->
+      "(" ^ x ^ ",)"
+  | xs ->
+      "(" ^ String.concat ~sep:", " xs ^ ")" *)
+
+(* let rec _make_cond_chain = function
+   | [] ->
+       assert false
+   | [(_, x)] ->
+       x
+   | (c, x) :: cxs ->
+       Printf.sprintf "%s if %s else %s" x c (make_cond_chain cxs) *)
+
+(* First step: resolution: *)
+
+(* let rec to_dataclass ~env ~tvars var t =
+     (* TODO: if no custom data-type anywhere, we let as-is... *)
+     let open Repr in
+     match t with
+     | Var v ->
+         to_dataclass ~env ~tvars var
+           (List.Assoc.find_exn ~equal:String.equal tvars v)
+     | Atomic a -> (
+       match a with
+       | Int | Bool | Float | String | Unit ->
+           var
+       | Custom u ->
+           assert false )
+     | App (ctor, ts) ->
+         (* Same case than above... *)
+         assert false
+     | Tuple ts ->
+         make_tuple
+         @@ List.mapi ts ~f:(fun i t ->
+                to_dataclass ~env ~tvars (Printf.sprintf "%s[%d]" var i) t )
+     | List t | Array t ->
+         (* TODO: possibly unsound with nested lists *)
+         (* Not sure: [d for d in d for d in d] seems to be valid *)
+         let elt = "__elt" in
+         Printf.sprintf "[%s for %s in %s]"
+           (to_dataclass ~env ~tvars elt t)
+           elt var
+     | Option t ->
+         (* None if var is None else ()  *)
+         Printf.sprintf "None if %s is None else %s" var
+           (to_dataclass ~env ~tvars var t)
+
+   and custom_to_dataclass ~env ~tvars var t t_args = assert false *)
 
 let show_value_declaration ~env ~quote ~generated v =
   let open Repr in

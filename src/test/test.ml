@@ -61,36 +61,36 @@ let%expect_test "registered types" =
 
     ((type_name SimpleAlias) (type_vars ())
      (definition
-      (Alias (Tuple ((Atomic Int) (Tuple ((Atomic String) (Atomic Float))))))))
+      (Alias (Tuple ((App Int ()) (Tuple ((App String ()) (App Float ()))))))))
 
     ((type_name SumType) (type_vars ())
      (definition
       (Variant
-       ((C (Anonymous ((Atomic Bool) (Atomic String))))
-        (D (Anonymous ((Atomic (Custom EnumType)))))
-        (E (Labeled ((x (Atomic Int)) (y (Atomic Bool)))))))))
+       ((C (Anonymous ((App Bool ()) (App String ()))))
+        (D (Anonymous ((App (Custom EnumType) ()))))
+        (E (Labeled ((x (App Int ())) (y (App Bool ())))))))))
 
     ((type_name TypeWithLists) (type_vars ())
-     (definition (Variant ((L (Anonymous ((List (Option (Atomic Int))))))))))
+     (definition (Variant ((L (Anonymous ((List (Option (App Int ()))))))))))
 
     ((type_name RecordType) (type_vars ())
-     (definition (Record ((x (Atomic Int)) (y (Option (Atomic Float)))))))
+     (definition (Record ((x (App Int ())) (y (Option (App Float ())))))))
 
     ((type_name RecordTypeAlias) (type_vars ())
-     (definition (Record ((x (Atomic Int)) (y (Option (Atomic Float)))))))
+     (definition (Record ((x (App Int ())) (y (Option (App Float ())))))))
 
     ((type_name Polymorphic) (type_vars (A B))
      (definition (Record ((x (Var A)) (y (Var B))))))
 
     ((type_name Loc) (type_vars ())
      (definition
-      (Alias (Tuple ((Atomic Int) (Atomic Int) (Atomic Int) (Atomic Int))))))
+      (Alias (Tuple ((App Int ()) (App Int ()) (App Int ()) (App Int ()))))))
 
     ((type_name WithLoc) (type_vars (A))
-     (definition (Record ((data (Var A)) (loc (Atomic (Custom Loc)))))))
+     (definition (Record ((data (Var A)) (loc (App (Custom Loc) ()))))))
 
     ((type_name LocatedName) (type_vars ())
-     (definition (Alias (App (Custom WithLoc) ((Atomic String)))))) |}]
+     (definition (Alias (App (Custom WithLoc) ((App String ())))))) |}]
 
 let test ~use_dataclasses =
   let values = registered_python_values () in
@@ -200,7 +200,7 @@ let%expect_test "python stub with dataclasses" =
 
     from enum import Enum
 
-    from typing import TypeAlias, TypeVar
+    from typing import TypeAlias, Generic, TypeVar
 
     A = TypeVar("A")
 

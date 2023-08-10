@@ -17,17 +17,17 @@ let rec type_expr {ptyp_desc; ptyp_loc= loc; _} =
       let t = ignore_longident_prefix ~loc t.txt in
       match (t, args) with
       | "int", [] ->
-          Repr.(Atomic Int)
+          Repr.(App (Int, []))
       | "float", [] ->
-          Repr.(Atomic Float)
+          Repr.(App (Float, []))
       | "string", [] ->
-          Repr.(Atomic String)
+          Repr.(App (String, []))
       | "bool", [] ->
-          Repr.(Atomic Bool)
+          Repr.(App (Bool, []))
       | "unit", [] ->
-          Repr.(Atomic Unit)
+          Repr.(App (Unit, []))
       | s, [] ->
-          Repr.(Atomic (Custom s))
+          Repr.(App (Custom s, []))
       | "option", [arg] ->
           Repr.Option (type_expr arg)
       | "list", [arg] ->

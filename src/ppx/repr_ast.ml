@@ -18,8 +18,6 @@ let atomic_type_ast ~loc = function
 let rec type_expr_ast ~loc = function
   | Var s ->
       [%expr Python_libgen.Repr.Var [%e estring ~loc s]]
-  | Atomic a ->
-      [%expr Python_libgen.Repr.Atomic [%e atomic_type_ast ~loc a]]
   | App (t, args) ->
       [%expr
         Python_libgen.Repr.App

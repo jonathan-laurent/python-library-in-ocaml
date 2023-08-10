@@ -5,7 +5,6 @@ type atomic_type = Bool | Int | Float | String | Unit | Custom of string
 
 type type_expr =
   | Var of string
-  | Atomic of atomic_type
   | App of atomic_type * type_expr list
   | Tuple of type_expr list
   | List of type_expr
