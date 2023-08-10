@@ -112,7 +112,7 @@ let show_type_expr ~env ~quote t =
   in
   aux ~quote t
 
-let show_type_alias ~env ~name alias =
+let show_type_alias_def ~env ~name alias =
   Env.ensure_imported env TypeAlias ;
   Printf.sprintf "%s: TypeAlias = %s" name alias
 
@@ -180,7 +180,7 @@ let show_dataclass_variant_declaration ~env ~name ~vars cases =
   let vars_s = String.concat ~sep:", " vars in
   let vars_s = if String.is_empty vars_s then "" else "[" ^ vars_s ^ "]" in
   let union =
-    show_type_alias ~env ~name
+    show_type_alias_def ~env ~name
       (String.concat ~sep:" | "
          (List.map
             ~f:(fun (ctor, _) -> Printf.sprintf "%s%s" ctor vars_s)
@@ -211,15 +211,22 @@ let show_union_variant_declaration ~env ~name ~vars:_ cases =
         Printf.sprintf "tuple[Literal[\"%s\"], %s]" ctor payload )
       cases
   in
-  show_type_alias ~env ~name (String.concat ~sep:" | " cases)
+  show_type_alias_def ~env ~name (String.concat ~sep:" | " cases)
 
-let show_type_declaration ~settings ~env ~quote td =
+let show_type_alias ~env ~name t =
+  show_type_alias_def ~env ~name (show_type_expr ~env ~quote:true t)
+
+let show_dataclass_type_alias ~env ~name t =
+  show_type_alias_def ~env ~name (show_type_expr ~env ~quote:true t)
+
+let show_type_declaration ~settings ~env td =
   let open Repr in
   let name = td.type_name and vars = td.type_vars in
   Env.add_type env td ;
   match td.definition with
   | Alias t ->
-      show_type_alias ~env ~name (show_type_expr ~env ~quote t)
+      if settings.use_dataclasses then show_dataclass_type_alias ~env ~name t
+      else show_type_alias ~env ~name t
   | Record fields ->
       if settings.use_dataclasses then
         show_dataclass_record_declaration ~env ~name ~vars fields
@@ -290,8 +297,9 @@ let of_ocaml = conv_generic t_of_ocaml
 
 let ocaml_of = conv_generic ocaml_of_t
 
-let show_value_declaration ~settings ~env ~quote ~generated v =
+let show_value_declaration ~settings ~env ~generated v =
   let open Repr in
+  let quote = false in
   let mod_ = Create_module.internal_module ~generated in
   match v.signature with
   | Constant t ->
@@ -358,11 +366,10 @@ let generate_py_stub ~settings ~lib_name ~generated ~types ~values =
   in
   let env = Env.create () in
   let types_section =
-    List.map types ~f:(show_type_declaration ~settings ~env ~quote:true)
+    List.map types ~f:(show_type_declaration ~settings ~env)
   in
   let values_section =
-    List.map values
-      ~f:(show_value_declaration ~settings ~env ~quote:false ~generated)
+    List.map values ~f:(show_value_declaration ~settings ~env ~generated)
   in
   let imports = show_imports ~env in
   String.concat ~sep:"\n\n"
