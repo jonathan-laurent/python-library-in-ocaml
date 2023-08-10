@@ -292,7 +292,7 @@ let%expect_test "python stub with dataclasses" =
         return [_Polymorphic_of_ocaml(_elt, (lambda x: x), (lambda x: x)) for _elt in _ret]
 
     def sum(l: list[int]) -> int:
-        _ret = _core_internals.sum(l)
+        _ret = _core_internals.sum([_elt for _elt in l])
         return _ret
 
     def make_record(x: int) -> RecordType:

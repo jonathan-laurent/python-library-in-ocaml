@@ -256,35 +256,39 @@ let ocaml_of_t t = "_" ^ "ocaml_of_" ^ t
 
 let funcall name args = name ^ "(" ^ String.concat ~sep:", " args ^ ")"
 
-(* First step: resolution: *)
-
-let rec of_ocaml ~env var t =
+let conv_generic conv_name =
   let open Repr in
-  match t with
-  | Var v ->
-      funcall (t_of_ocaml v) [var]
-  | App (ctor, ts) -> (
-    match ctor with
-    | Int | Bool | Float | String | Unit ->
-        var
-    | Custom u ->
-        let x = "x" in
-        funcall (t_of_ocaml u)
-          ( var
-          :: List.map ts ~f:(fun t ->
-                 Printf.sprintf "(lambda %s: %s)" x (of_ocaml ~env x t) ) ) )
-  | Tuple ts ->
-      make_tuple
-      @@ List.mapi ts ~f:(fun i t ->
-             of_ocaml ~env (Printf.sprintf "%s[%d]" var i) t )
-  | List t | Array t ->
-      (* TODO: possibly unsound with nested lists *)
-      (* Not sure: [d for d in d for d in d] seems to be valid *)
-      let elt = "_elt" in
-      Printf.sprintf "[%s for %s in %s]" (of_ocaml ~env elt t) elt var
-  | Option t ->
-      (* None if var is None else ()  *)
-      Printf.sprintf "None if %s is None else %s" var (of_ocaml ~env var t)
+  let rec aux ~env var t =
+    match t with
+    | Var v ->
+        funcall (conv_name v) [var]
+    | App (ctor, ts) -> (
+      match ctor with
+      | Int | Bool | Float | String | Unit ->
+          var
+      | Custom u ->
+          let x = "x" in
+          funcall (conv_name u)
+            ( var
+            :: List.map ts ~f:(fun t ->
+                   Printf.sprintf "(lambda %s: %s)" x (aux ~env x t) ) ) )
+    | Tuple ts ->
+        make_tuple
+        @@ List.mapi ts ~f:(fun i t ->
+               aux ~env (Printf.sprintf "%s[%d]" var i) t )
+    | List t | Array t ->
+        (* TODO: possibly unsound with nested lists *)
+        (* Not sure: [d for d in d for d in d] seems to be valid *)
+        let elt = "_elt" in
+        Printf.sprintf "[%s for %s in %s]" (aux ~env elt t) elt var
+    | Option t ->
+        Printf.sprintf "None if %s is None else %s" var (aux ~env var t)
+  in
+  aux
+
+let of_ocaml = conv_generic t_of_ocaml
+
+let ocaml_of = conv_generic ocaml_of_t
 
 let show_value_declaration ~settings ~env ~quote ~generated v =
   let open Repr in
@@ -315,9 +319,13 @@ let show_value_declaration ~settings ~env ~quote ~generated v =
       let body =
         if settings.use_dataclasses then
           let ret_var = "_ret" in
+          let converted_args =
+            List.map args ~f:(fun (a, at) -> ocaml_of ~env a at)
+            |> String.concat ~sep:", "
+          in
           String.concat ~sep:"\n"
             [ Printf.sprintf "    %s = %s.%s(%s)" ret_var mod_ v.name
-                args_untyped
+                converted_args
             ; Printf.sprintf "    return %s" (of_ocaml ~env ret_var ret) ]
         else Printf.sprintf "    return %s.%s(%s)" mod_ v.name args_untyped
       in
