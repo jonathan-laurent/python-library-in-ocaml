@@ -213,41 +213,16 @@ let show_union_variant_declaration ~env ~name ~vars:_ cases =
   in
   show_type_alias_def ~env ~name (String.concat ~sep:" | " cases)
 
-let show_type_alias ~env ~name t =
-  show_type_alias_def ~env ~name (show_type_expr ~env ~quote:true t)
+let t_of_ocaml t = "_" ^ t ^ "_of_ocaml"
 
-let show_dataclass_type_alias ~env ~name t =
-  show_type_alias_def ~env ~name (show_type_expr ~env ~quote:true t)
+let ocaml_of_t t = "_" ^ "ocaml_of_" ^ t
 
-let show_type_declaration ~settings ~env td =
-  let open Repr in
-  let name = td.type_name and vars = td.type_vars in
-  Env.add_type env td ;
-  match td.definition with
-  | Alias t ->
-      if settings.use_dataclasses then show_dataclass_type_alias ~env ~name t
-      else show_type_alias ~env ~name t
-  | Record fields ->
-      if settings.use_dataclasses then
-        show_dataclass_record_declaration ~env ~name ~vars fields
-      else show_typed_dict_record_declaration ~env ~name ~vars fields
-  | Variant cases ->
-      if settings.use_dataclasses then
-        show_dataclass_variant_declaration ~env ~name ~vars cases
-      else show_union_variant_declaration ~env ~name ~vars cases
-  | Enum cases ->
-      if settings.use_dataclasses then
-        show_enum_declaration ~env ~name ~vars cases
-      else
-        let cases = List.map cases ~f:(fun name -> (name, Anonymous [])) in
-        show_union_variant_declaration ~env ~name ~vars cases
+let funcall name args = name ^ "(" ^ String.concat ~sep:", " args ^ ")"
 
-let indent s =
-  String.split_lines s
-  |> List.map ~f:(fun s -> "    " ^ s)
-  |> String.concat_lines
-  |> fun s -> String.drop_suffix s 1
-(* remove trailing \n *)
+let fundef ~name ~args body =
+  String.concat ~sep:"\n"
+  @@ Printf.sprintf "def %s(%s):" name (String.concat ~sep:", " args)
+     :: List.map body ~f:(fun s -> "    " ^ s)
 
 let make_tuple = function
   | [] ->
@@ -256,12 +231,6 @@ let make_tuple = function
       "(" ^ x ^ ",)"
   | xs ->
       "(" ^ String.concat ~sep:", " xs ^ ")"
-
-let t_of_ocaml t = "_" ^ t ^ "_of_ocaml"
-
-let ocaml_of_t t = "_" ^ "ocaml_of_" ^ t
-
-let funcall name args = name ^ "(" ^ String.concat ~sep:", " args ^ ")"
 
 let conv_generic conv_name =
   let open Repr in
@@ -296,6 +265,53 @@ let conv_generic conv_name =
 let of_ocaml = conv_generic t_of_ocaml
 
 let ocaml_of = conv_generic ocaml_of_t
+
+let show_type_alias ~env ~name t =
+  show_type_alias_def ~env ~name (show_type_expr ~env ~quote:true t)
+
+let show_dataclass_type_alias ~env ~vars ~name t =
+  let main =
+    show_type_alias_def ~env ~name (show_type_expr ~env ~quote:true t)
+  in
+  let alias_of_ocaml =
+    let x = "x" in
+    fundef ~name:(t_of_ocaml name)
+      ~args:("x" :: List.map vars ~f:(fun a -> t_of_ocaml a))
+      ["return " ^ of_ocaml ~env x t]
+  in
+  let ocaml_of_alias = "" in
+  String.concat ~sep:"\n\n" [main; alias_of_ocaml; ocaml_of_alias]
+
+let show_type_declaration ~settings ~env td =
+  let open Repr in
+  let name = td.type_name and vars = td.type_vars in
+  Env.add_type env td ;
+  match td.definition with
+  | Alias t ->
+      if settings.use_dataclasses then
+        show_dataclass_type_alias ~env ~vars ~name t
+      else show_type_alias ~env ~name t
+  | Record fields ->
+      if settings.use_dataclasses then
+        show_dataclass_record_declaration ~env ~name ~vars fields
+      else show_typed_dict_record_declaration ~env ~name ~vars fields
+  | Variant cases ->
+      if settings.use_dataclasses then
+        show_dataclass_variant_declaration ~env ~name ~vars cases
+      else show_union_variant_declaration ~env ~name ~vars cases
+  | Enum cases ->
+      if settings.use_dataclasses then
+        show_enum_declaration ~env ~name ~vars cases
+      else
+        let cases = List.map cases ~f:(fun name -> (name, Anonymous [])) in
+        show_union_variant_declaration ~env ~name ~vars cases
+
+let indent s =
+  String.split_lines s
+  |> List.map ~f:(fun s -> "    " ^ s)
+  |> String.concat_lines
+  |> fun s -> String.drop_suffix s 1
+(* remove trailing \n *)
 
 let show_value_declaration ~settings ~env ~generated v =
   let open Repr in
