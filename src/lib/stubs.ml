@@ -62,7 +62,7 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
 
   let conv_generic conv_name =
     let open Pydsl in
-    let rec aux ~env lval t =
+    let rec aux lval t =
       match t with
       | Repr.Var v -> Call (Var (conv_name v), [ Lvalue lval ])
       | App (ctor, ts) -> (
@@ -71,12 +71,10 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
           | Custom u ->
               Call
                 ( Var (conv_name u),
-                  Lvalue lval :: List.map (fun t -> Lambda (aux ~env Arg t)) ts
-                ))
-      | Tuple ts ->
-          Tuple (List.mapi (fun i t -> aux ~env (Index (lval, i)) t) ts)
-      | List t | Array t -> Comprehension (Lvalue lval, aux ~env Arg t)
-      | Option t -> Case_not_none (Lvalue lval, aux ~env Arg t)
+                  Lvalue lval :: List.map (fun t -> Lambda (aux Arg t)) ts ))
+      | Tuple ts -> Tuple (List.mapi (fun i t -> aux (Index (lval, i)) t) ts)
+      | List t | Array t -> Comprehension (Lvalue lval, aux Arg t)
+      | Option t -> Case_not_none (Lvalue lval, aux Arg t)
     in
     aux
 
@@ -116,16 +114,23 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
         in
         children @ [ union ]
 
+  let ret_var = "_ret"
+
   let compile_value_declaration { name; signature; _ } =
     match signature with
     | Repr.Constant _ -> assert false
     | Repr.Function { args; ret } ->
         let docstring = Register.registered_python_docstring name in
-        let call_args = List.map (fun (a, _) -> Lvalue (Var a)) args in
+        let call_args = List.map (fun (a, t) -> ocaml_of (Var a) t) args in
         let internals =
           Create_module.internal_module ~generated:P.generated_module
         in
-        let body = [ Return (Call (Field (Var internals, name), call_args)) ] in
+        let body =
+          [
+            Assign (ret_var, Call (Field (Var internals, name), call_args));
+            Return (of_ocaml (Var ret_var) ret);
+          ]
+        in
         [ Declare_fun { name; args; ret; docstring; body } ]
 end
 

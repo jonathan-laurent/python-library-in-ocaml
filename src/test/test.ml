@@ -274,23 +274,29 @@ let%expect_test "python stub with dataclasses" =
     LocatedName: TypeAlias = "WithLoc[str]"
 
     def f(x: int) -> int:
-        return _core_internals.f(x)
+        _ret = _core_internals.f(x)
+        return _ret
 
     def fact(n: int) -> int:
         """
         Compute the factorial of an integer number.
         Return 1 on negative inputs.
         """
-        return _core_internals.fact(n)
+        _ret = _core_internals.fact(n)
+        return _ret
 
     def two_poly(a: int, b: str) -> tuple[Polymorphic[int, str], Polymorphic[str, int]]:
-        return _core_internals.two_poly(a, b)
+        _ret = _core_internals.two_poly(a, b)
+        return (_Polymorphic_of_ocaml(_ret[0], (lambda _x: _x), (lambda _x: _x)), _Polymorphic_of_ocaml(_ret[1], (lambda _x: _x), (lambda _x: _x)))
 
     def list_poly(a: int, b: str) -> list[Polymorphic[int, str]]:
-        return _core_internals.list_poly(a, b)
+        _ret = _core_internals.list_poly(a, b)
+        return [_Polymorphic_of_ocaml(_x, (lambda _x: _x), (lambda _x: _x)) for _x in _ret]
 
     def sum(l: list[int]) -> int:
-        return _core_internals.sum(l)
+        _ret = _core_internals.sum([_x for _x in l])
+        return _ret
 
     def make_record(x: int) -> RecordType:
-        return _core_internals.make_record(x) |}]
+        _ret = _core_internals.make_record(x)
+        return _RecordType_of_ocaml(_ret) |}]
