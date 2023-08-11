@@ -56,7 +56,10 @@ module Default_encoding (P : Params) : Encoding = struct
         [ Declare_fun { name; args; ret; docstring; body } ]
 end
 
-module Dataclasses_encoding (Params : Params) : Encoding = struct
+module Dataclasses_encoding (P : Params) : Encoding = struct
+  open Repr
+  open Pydsl
+
   let conv_generic conv_name =
     let open Pydsl in
     let rec aux ~env lval t =
@@ -89,11 +92,36 @@ module Dataclasses_encoding (Params : Params) : Encoding = struct
     | Repr.Anonymous [ x ] -> [ ("arg", x) ]
     | Repr.Anonymous xs -> [ ("args", Repr.Tuple xs) ]
 
-  let compile_type_declaration = function _ -> assert false
-  let compile_value_declaration = function _ -> assert false
+  let dump_labels = function
+    | Repr.Anonymous ts -> ts
+    | Labeled lts -> List.map snd lts
+
+  let compile_type_declaration
+      { type_name = name; type_vars = vars; definition } =
+    match definition with
+    | Alias t -> [ Declare_type { name; vars; def = Simple t } ]
+    | Record fields -> [ Declare_typed_dict { name; vars; fields } ]
+    | Enum cases ->
+        let cases = List.map (fun s -> (s, [])) cases in
+        [ Declare_type { name; vars; def = Tagged_union cases } ]
+    | Variant cases ->
+        let cases = List.map (fun (s, c) -> (s, dump_labels c)) cases in
+        [ Declare_type { name; vars; def = Tagged_union cases } ]
+
+  let compile_value_declaration { name; signature; _ } =
+    match signature with
+    | Repr.Constant _ -> assert false
+    | Repr.Function { args; ret } ->
+        let docstring = Register.registered_python_docstring name in
+        let call_args = List.map (fun (a, _) -> Lvalue (Var a)) args in
+        let internals =
+          Create_module.internal_module ~generated:P.generated_module
+        in
+        let body = [ Return (Call (Field (Var internals, name), call_args)) ] in
+        [ Declare_fun { name; args; ret; docstring; body } ]
 end
 
-let generate_py_stub ~settings:_ ~lib_name ~generated ~types ~values =
+let generate_py_stub ~settings ~lib_name ~generated ~types ~values =
   let prelude =
     Stdio.In_channel.read_all (lookup_template "stub.py")
     |> Base.String.substr_replace_all ~pattern:"{LIB_NAME}" ~with_:lib_name
@@ -107,9 +135,8 @@ let generate_py_stub ~settings:_ ~lib_name ~generated ~types ~values =
         let generated_module = generated
       end)
     in
-    (* if settings.use_dataclasses then (module Dataclasses_encoding (Params))
-       else (module Default_encoding (Params)) *)
-    (module Default_encoding (Params))
+    if settings.use_dataclasses then (module Dataclasses_encoding (Params))
+    else (module Default_encoding (Params))
   in
   let stub =
     List.concat_map E.compile_type_declaration types
