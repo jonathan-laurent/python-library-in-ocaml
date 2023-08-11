@@ -24,7 +24,7 @@ def test_dataclasses():
     print(mod.custommer_data("Flanders"))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_normal()
     print()
     test_dataclasses()
