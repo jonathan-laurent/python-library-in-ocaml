@@ -17,46 +17,22 @@ dll.caml_startup(argv)
 import _ocaml_module_internals  # type: ignore
 
 
-from dataclasses import dataclass
-
-from typing import TypeAlias, Generic, TypeVar
+from typing import Literal, TypeAlias, TypeVar, TypedDict
 
 A = TypeVar("A")
 
+Expr: TypeAlias = (
+    tuple[Literal["Constant"], tuple[int]]
+    | tuple[Literal["Var"], tuple[str]]
+    | tuple[Literal["Add"], tuple["Expr", "Expr"]]
+)
 
-@dataclass
-class Constant:
-    arg: int
-
-
-@dataclass
-class Var:
-    arg: str
-
-
-@dataclass
-class Add:
-    args: tuple["Expr", "Expr"]
+Result: TypeAlias = (
+    tuple[Literal["Answer"], tuple[A]] | tuple[Literal["Error"], tuple[str]]
+)
 
 
-Expr: TypeAlias = Constant | Var | Add
-
-
-@dataclass
-class Answer(Generic[A]):
-    arg: A
-
-
-@dataclass
-class Error(Generic[A]):
-    arg: str
-
-
-Result: TypeAlias = Answer[A] | Error[A]
-
-
-@dataclass
-class CustommerData:
+class CustommerData(TypedDict, total=True):
     age: int
     gender: str
 

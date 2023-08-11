@@ -131,7 +131,7 @@ let%expect_test "python stub without dataclasses" =
     import _core_internals  # type: ignore
 
 
-    from typing import Literal, TypeAlias, TypedDict, Generic, TypeVar
+    from typing import Generic, Literal, TypeALias, TypeVar, TypedDict
 
     A = TypeVar("A")
 
@@ -166,26 +166,26 @@ let%expect_test "python stub without dataclasses" =
     LocatedName: TypeAlias = "WithLoc[str]"
 
     def f(x: int) -> int:
-        return _core_internals.f(x)
+        return core.f(x)
 
     def fact(n: int) -> int:
         """
         Compute the factorial of an integer number.
         Return 1 on negative inputs.
         """
-        return _core_internals.fact(n)
+        return core.fact(n)
 
     def two_poly(a: int, b: str) -> tuple[Polymorphic[int, str], Polymorphic[str, int]]:
-        return _core_internals.two_poly(a, b)
+        return core.two_poly(a, b)
 
     def list_poly(a: int, b: str) -> list[Polymorphic[int, str]]:
-        return _core_internals.list_poly(a, b)
+        return core.list_poly(a, b)
 
     def sum(l: list[int]) -> int:
-        return _core_internals.sum(l)
+        return core.sum(l)
 
     def make_record(x: int) -> RecordType:
-        return _core_internals.make_record(x) |}]
+        return core.make_record(x) |}]
 
 let%expect_test "python stub with dataclasses" =
   test ~use_dataclasses:true ;
@@ -210,106 +210,58 @@ let%expect_test "python stub with dataclasses" =
     import _core_internals  # type: ignore
 
 
-    from dataclasses import dataclass
-
-    from enum import Enum
-
-    from typing import TypeAlias, Generic, TypeVar
+    from typing import Generic, Literal, TypeALias, TypeVar, TypedDict
 
     A = TypeVar("A")
 
     B = TypeVar("B")
 
-    class EnumType(Enum):
-        A = "A"
-        B = "B"
+    EnumType: TypeAlias = tuple[Literal["A"], None] | tuple[Literal["B"], None]
 
     SimpleAlias: TypeAlias = tuple[int, tuple[str, float]]
 
-    def _SimpleAlias_of_ocaml(x):
-        return (x[0], (x[1][0], x[1][1]))
+    SumType: TypeAlias = tuple[Literal["C"], tuple[bool, str]] | tuple[Literal["D"], tuple["EnumType"]] | tuple[Literal["E"], tuple[int, bool]]
 
+    TypeWithLists: TypeAlias = tuple[Literal["L"], tuple[list[int | None]]]
 
-
-    @dataclass
-    class C:
-        args: tuple[bool, str]
-
-    @dataclass
-    class D:
-        arg: "EnumType"
-
-    @dataclass
-    class E:
-        x: int
-        y: bool
-
-    SumType: TypeAlias = C | D | E
-
-    @dataclass
-    class L:
-        arg: list[int | None]
-
-    TypeWithLists: TypeAlias = L
-
-    @dataclass
-    class RecordType:
+    class RecordType(TypedDict, total=True):
         x: int
         y: float | None
 
-    @dataclass
-    class RecordTypeAlias:
+    class RecordTypeAlias(TypedDict, total=True):
         x: int
         y: float | None
 
-    @dataclass
-    class Polymorphic(Generic[A, B]):
+    class Polymorphic(TypedDict, Generic[A, B], total=True):
         x: A
         y: B
 
     Loc: TypeAlias = tuple[int, int, int, int]
 
-    def _Loc_of_ocaml(x):
-        return (x[0], x[1], x[2], x[3])
-
-
-
-    @dataclass
-    class WithLoc(Generic[A]):
+    class WithLoc(TypedDict, Generic[A], total=True):
         data: A
         loc: "Loc"
 
     LocatedName: TypeAlias = "WithLoc[str]"
 
-    def _LocatedName_of_ocaml(x):
-        return _WithLoc_of_ocaml(x, (lambda x: x))
-
-
-
     def f(x: int) -> int:
-        _ret = _core_internals.f(x)
-        return _ret
+        return core.f(x)
 
     def fact(n: int) -> int:
         """
         Compute the factorial of an integer number.
         Return 1 on negative inputs.
         """
-        _ret = _core_internals.fact(n)
-        return _ret
+        return core.fact(n)
 
     def two_poly(a: int, b: str) -> tuple[Polymorphic[int, str], Polymorphic[str, int]]:
-        _ret = _core_internals.two_poly(a, b)
-        return (_Polymorphic_of_ocaml(_ret[0], (lambda x: x), (lambda x: x)), _Polymorphic_of_ocaml(_ret[1], (lambda x: x), (lambda x: x)))
+        return core.two_poly(a, b)
 
     def list_poly(a: int, b: str) -> list[Polymorphic[int, str]]:
-        _ret = _core_internals.list_poly(a, b)
-        return [_Polymorphic_of_ocaml(_elt, (lambda x: x), (lambda x: x)) for _elt in _ret]
+        return core.list_poly(a, b)
 
     def sum(l: list[int]) -> int:
-        _ret = _core_internals.sum([_elt for _elt in l])
-        return _ret
+        return core.sum(l)
 
     def make_record(x: int) -> RecordType:
-        _ret = _core_internals.make_record(x)
-        return _RecordType_of_ocaml(_ret) |}]
+        return core.make_record(x) |}]
