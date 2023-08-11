@@ -36,7 +36,7 @@ class Var:
 
 @dataclass
 class Add:
-    args: tuple[Expr, Expr]
+    args: tuple["Expr", "Expr"]
 
 
 Expr: TypeAlias = Union[Constant, Var, Add]

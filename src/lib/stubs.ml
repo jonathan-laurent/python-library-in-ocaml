@@ -62,7 +62,7 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
     let open Pydsl in
     let rec aux lval t =
       match t with
-      | Repr.Var v -> Call (Var (conv_name v), [ Lvalue lval ])
+      | Repr.Tvar v -> Call (Var (conv_name v), [ Lvalue lval ])
       | App (ctor, ts) -> (
           match ctor with
           | Int | Bool | Float | String | Unit -> Lvalue lval
@@ -70,7 +70,8 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
               Call
                 ( Var (conv_name u),
                   Lvalue lval :: List.map (fun t -> Lambda (aux Arg t)) ts ))
-      | Tuple ts -> Tuple (List.mapi (fun i t -> aux (Index (lval, i)) t) ts)
+      | Tuple ts ->
+          Create_tuple (List.mapi (fun i t -> aux (Index (lval, i)) t) ts)
       | List t | Array t -> Comprehension (Lvalue lval, aux Arg t)
       | Option t -> Case_not_none (Lvalue lval, aux lval t)
     in
@@ -91,7 +92,7 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
   let variant_union ~vars cases =
     Union
       (List.map
-         (fun (s, _) -> App (Custom s, List.map (fun v -> Repr.Var v) vars))
+         (fun (s, _) -> App (Custom s, List.map (fun v -> Repr.Tvar v) vars))
          cases)
 
   let make_conv conv ~name ~vars f =
@@ -111,14 +112,17 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
     Create_dataclass (name, List.map init fields)
 
   let ocaml_of_variant x ctor = function
-    | Repr.Anonymous [] -> Tuple [ String_constant ctor; None_constant ]
+    | Repr.Anonymous [] -> Create_tuple [ String_constant ctor; None_constant ]
     | Repr.Anonymous [ t ] ->
-        Tuple [ String_constant ctor; Tuple [ ocaml_of (Field (x, "arg")) t ] ]
+        Create_tuple
+          [
+            String_constant ctor; Create_tuple [ ocaml_of (Field (x, "arg")) t ];
+          ]
     | Repr.Anonymous args ->
         let ith i t = ocaml_of (Index (Field (x, "args"), i)) t in
-        Tuple [ String_constant ctor; Tuple (List.mapi ith args) ]
+        Create_tuple [ String_constant ctor; Create_tuple (List.mapi ith args) ]
     | Repr.Labeled fields ->
-        Tuple [ String_constant ctor; ocaml_of_dataclass x fields ]
+        Create_tuple [ String_constant ctor; ocaml_of_dataclass x fields ]
 
   let variant_of_ocaml name x = function
     | Repr.Anonymous [] -> Create_dataclass (name, [])
@@ -217,4 +221,6 @@ let generate_py_stub ~settings ~lib_name ~generated ~types ~values =
     @ List.concat_map E.compile_value_declaration values
   in
   String.concat "\n\n"
-    ([ prelude ] @ Pydsl.generate_imports stub @ [ Pydsl.show_stub stub ])
+    ([ prelude ]
+    @ Pydsl.generate_imports stub
+    @ [ Pydsl.(show_stub (add_quote_hints stub)) ])

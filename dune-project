@@ -20,6 +20,7 @@
   (ppxlib (>= 0.30.0))
   (metaquot (>= 0.5.2))
   (dune-site (>= 3.10.0))
+  (visitors (>= 20210608))
   (ppx_python (>= 0.16.0))
   (ppx_deriving (>= 5.2.1))
   (ppx_sexp_conv (>= 0.16.0))

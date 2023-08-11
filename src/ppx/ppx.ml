@@ -18,7 +18,7 @@ module Renaming = struct
     | x -> x
 
   let rec rename_type_expr = function
-    | Var s -> Var (convert_type_var s)
+    | Tvar s -> Tvar (convert_type_var s)
     | App (a, ts) -> App (rename_atomic_type a, List.map ~f:rename_type_expr ts)
     | Tuple ts -> Tuple (List.map ~f:rename_type_expr ts)
     | List t -> List (rename_type_expr t)

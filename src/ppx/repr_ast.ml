@@ -10,7 +10,7 @@ let atomic_type_ast ~loc = function
   | Custom s -> [%expr Python_libgen.Repr.Custom [%e estring ~loc s]]
 
 let rec type_expr_ast ~loc = function
-  | Var s -> [%expr Python_libgen.Repr.Var [%e estring ~loc s]]
+  | Tvar s -> [%expr Python_libgen.Repr.Tvar [%e estring ~loc s]]
   | App (t, args) ->
       [%expr
         Python_libgen.Repr.App

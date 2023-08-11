@@ -24,7 +24,7 @@ A = TypeVar("A")
 Expr: TypeAlias = Union[
     tuple[Literal["Constant"], tuple[int]],
     tuple[Literal["Var"], tuple[str]],
-    tuple[Literal["Add"], tuple[Expr, Expr]],
+    tuple[Literal["Add"], tuple["Expr", "Expr"]],
 ]
 
 Result: TypeAlias = Union[

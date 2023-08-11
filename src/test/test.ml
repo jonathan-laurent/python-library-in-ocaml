@@ -90,14 +90,14 @@ let%expect_test "registered types" =
      (definition (Record ((x (App Int ())) (y (Option (App Float ())))))))
 
     ((type_name Polymorphic) (type_vars (A B))
-     (definition (Record ((x (Var A)) (y (Var B))))))
+     (definition (Record ((x (Tvar A)) (y (Tvar B))))))
 
     ((type_name Loc) (type_vars ())
      (definition
       (Alias (Tuple ((App Int ()) (App Int ()) (App Int ()) (App Int ()))))))
 
     ((type_name WithLoc) (type_vars (A))
-     (definition (Record ((data (Var A)) (loc (App (Custom Loc) ()))))))
+     (definition (Record ((data (Tvar A)) (loc (App (Custom Loc) ()))))))
 
     ((type_name LocatedName) (type_vars ())
      (definition (Alias (App (Custom WithLoc) ((App String ())))))) |}]
@@ -133,19 +133,19 @@ let%expect_test "python stub without dataclasses" =
     import _core_internals  # type: ignore
 
 
-    from typing import Generic, Literal, TypeAlias, TypeVar, TypedDict
+    from typing import Generic, Literal, TypeAlias, TypeVar, TypedDict, Union
 
     A = TypeVar("A")
 
     B = TypeVar("B")
 
-    EnumType: TypeAlias = tuple[Literal["A"], None] | tuple[Literal["B"], None]
+    EnumType: TypeAlias = Union[tuple[Literal["A"], None], tuple[Literal["B"], None]]
 
     SimpleAlias: TypeAlias = tuple[int, tuple[str, float]]
 
-    SumType: TypeAlias = tuple[Literal["C"], tuple[bool, str]] | tuple[Literal["D"], tuple["EnumType"]] | tuple[Literal["E"], tuple[int, bool]]
+    SumType: TypeAlias = Union[tuple[Literal["C"], tuple[bool, str]], tuple[Literal["D"], tuple[EnumType]], tuple[Literal["E"], tuple[int, bool]]]
 
-    TypeWithLists: TypeAlias = tuple[Literal["L"], tuple[list[int | None]]]
+    TypeWithLists: TypeAlias = Union[tuple[Literal["L"], tuple[list[int | None]]]]
 
     class RecordType(TypedDict, total=True):
         x: int
@@ -163,9 +163,9 @@ let%expect_test "python stub without dataclasses" =
 
     class WithLoc(TypedDict, Generic[A], total=True):
         data: A
-        loc: "Loc"
+        loc: Loc
 
-    LocatedName: TypeAlias = "WithLoc[str]"
+    LocatedName: TypeAlias = WithLoc[str]
 
     def f(x: int) -> int:
         return _core_internals.f(x)
@@ -212,11 +212,11 @@ let%expect_test "python stub with dataclasses" =
     import _core_internals  # type: ignore
 
 
-    from dataclass import dataclass
+    from dataclasses import dataclass
 
     from enum import Enum
 
-    from typing import Generic, TypeAlias, TypeVar
+    from typing import Generic, TypeAlias, TypeVar, Union
 
     A = TypeVar("A")
 
@@ -230,7 +230,7 @@ let%expect_test "python stub with dataclasses" =
         return x.value
 
     def _EnumType_of_ocaml(x):
-        return EnumType.A if x == "A" else EnumType.B if x == "B" else raise RuntimeError()
+        return EnumType.A if x == "A" else EnumType.B if x == "B" else NotImplemented
 
     SimpleAlias: TypeAlias = tuple[int, tuple[str, float]]
 
@@ -246,32 +246,32 @@ let%expect_test "python stub with dataclasses" =
 
     @dataclass
     class D:
-        arg: "EnumType"
+        arg: EnumType
 
     @dataclass
     class E:
         x: int
         y: bool
 
-    SumType: TypeAlias = "C" | "D" | "E"
+    SumType: TypeAlias = Union[C, D, E]
 
     def _ocaml_of_SumType(x):
-        return ("C", (x.args[0], x.args[1])) if isinstance(x, C) else ("D", (_ocaml_of_EnumType(x.arg),)) if isinstance(x, D) else ("E", {"x": x.x, "y": x.y}) if isinstance(x, E) else raise RuntimeError()
+        return ("C", (x.args[0], x.args[1])) if isinstance(x, C) else ("D", (_ocaml_of_EnumType(x.arg),)) if isinstance(x, D) else ("E", {"x": x.x, "y": x.y}) if isinstance(x, E) else NotImplemented
 
     def _SumType_of_ocaml(x):
-        return C(args=(x[1][0], x[1][1])) if x[0] == "C" else D(arg=_EnumType_of_ocaml(x[1][0])) if x[0] == "D" else E(x=x[1]["x"], y=x[1]["y"]) if x[0] == "E" else raise RuntimeError()
+        return C(args=(x[1][0], x[1][1])) if x[0] == "C" else D(arg=_EnumType_of_ocaml(x[1][0])) if x[0] == "D" else E(x=x[1]["x"], y=x[1]["y"]) if x[0] == "E" else NotImplemented
 
     @dataclass
     class L:
         arg: list[int | None]
 
-    TypeWithLists: TypeAlias = "L"
+    TypeWithLists: TypeAlias = Union[L]
 
     def _ocaml_of_TypeWithLists(x):
-        return ("L", ([_x if _x is not None else None for _x in x.arg],)) if isinstance(x, L) else raise RuntimeError()
+        return ("L", ([_x if _x is not None else None for _x in x.arg],)) if isinstance(x, L) else NotImplemented
 
     def _TypeWithLists_of_ocaml(x):
-        return L(arg=[_x if _x is not None else None for _x in x[1][0]]) if x[0] == "L" else raise RuntimeError()
+        return L(arg=[_x if _x is not None else None for _x in x[1][0]]) if x[0] == "L" else NotImplemented
 
     @dataclass
     class RecordType:
@@ -279,10 +279,10 @@ let%expect_test "python stub with dataclasses" =
         y: float | None
 
     def _ocaml_of_RecordType(x):
-        return {"x": x.x, "y": _x if x.y is not None else None}
+        return {"x": x.x, "y": x.y if x.y is not None else None}
 
     def _RecordType_of_ocaml(x):
-        return RecordType(x=x["x"], y=_x if x["y"] is not None else None)
+        return RecordType(x=x["x"], y=x["y"] if x["y"] is not None else None)
 
     @dataclass
     class RecordTypeAlias:
@@ -290,10 +290,10 @@ let%expect_test "python stub with dataclasses" =
         y: float | None
 
     def _ocaml_of_RecordTypeAlias(x):
-        return {"x": x.x, "y": _x if x.y is not None else None}
+        return {"x": x.x, "y": x.y if x.y is not None else None}
 
     def _RecordTypeAlias_of_ocaml(x):
-        return RecordTypeAlias(x=x["x"], y=_x if x["y"] is not None else None)
+        return RecordTypeAlias(x=x["x"], y=x["y"] if x["y"] is not None else None)
 
     @dataclass
     class Polymorphic(Generic[A, B]):
@@ -317,7 +317,7 @@ let%expect_test "python stub with dataclasses" =
     @dataclass
     class WithLoc(Generic[A]):
         data: A
-        loc: "Loc"
+        loc: Loc
 
     def _ocaml_of_WithLoc(x, _ocaml_of_A):
         return {"data": _ocaml_of_A(x.data), "loc": _ocaml_of_Loc(x.loc)}
@@ -325,7 +325,7 @@ let%expect_test "python stub with dataclasses" =
     def _WithLoc_of_ocaml(x, _A_of_ocaml):
         return WithLoc(data=_A_of_ocaml(x["data"]), loc=_Loc_of_ocaml(x["loc"]))
 
-    LocatedName: TypeAlias = "WithLoc[str]"
+    LocatedName: TypeAlias = WithLoc[str]
 
     def _ocaml_of_LocatedName(x):
         return _ocaml_of_WithLoc(x, (lambda _x: _x))

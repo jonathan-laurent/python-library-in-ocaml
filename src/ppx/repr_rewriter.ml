@@ -8,7 +8,7 @@ let ignore_longident_prefix ~loc = function
 
 let rec type_expr { ptyp_desc; ptyp_loc = loc; _ } =
   match ptyp_desc with
-  | Ptyp_var v -> Repr.Var v
+  | Ptyp_var v -> Repr.Tvar v
   | Ptyp_tuple args -> Repr.Tuple (List.map type_expr args)
   | Ptyp_constr (t, args) -> (
       let t = ignore_longident_prefix ~loc t.txt in

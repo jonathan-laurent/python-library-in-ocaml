@@ -11,12 +11,12 @@ type lvalue =
   | Str_index of lvalue * string
   | Index of lvalue * int
 
-type expr =
+and expr =
   | None_constant
   | String_constant of string
   | Lvalue of lvalue
   | Call of lvalue * expr list
-  | Tuple of expr list
+  | Create_tuple of expr list
   | Lambda of expr (* lambda _x: #1 *)
   | Case_not_none of expr * expr (* #2 if #1 is not None else None *)
   | Comprehension of expr * expr (* [#2 for _x in #1] *)
@@ -28,16 +28,31 @@ type expr =
   | Str_cases of lvalue * (string * expr) list
   | Type_cases of lvalue * (string * expr) list
 
-type instr = Assign of string * expr | Return of expr
-type block = instr list
-type type_expr = Repr.type_expr
+and instr = Assign of string * expr | Return of expr
+and block = instr list
 
-type alias_def =
+and atomic_type = Repr.atomic_type =
+  | Bool
+  | Int
+  | Float
+  | String
+  | Unit
+  | Custom of string
+
+and type_expr = Repr.type_expr =
+  | Tvar of string
+  | App of atomic_type * type_expr list
+  | Tuple of type_expr list
+  | List of type_expr
+  | Array of type_expr
+  | Option of type_expr
+
+and alias_def =
   | Simple of type_expr
   | Union of type_expr list
   | Tagged_union of (string * type_expr list) list
 
-type item =
+and item =
   | Declare_enum of { name : string; cases : string list }
   | Declare_dataclass of {
       name : string;
@@ -59,7 +74,7 @@ type item =
     }
   | Declare_fun of { name : string; args : string list; body : block }
 
-type stub = item list
+and stub = item list [@@deriving visitors { variety = "map" }]
 
 let fmt = Printf.sprintf
 let concat sep = Base.String.concat ~sep
@@ -85,7 +100,7 @@ let show_atomic_type =
 let rec show_type ~quote t =
   let open Repr in
   match t with
-  | Var s -> s
+  | Tvar s -> s
   | App (ctor, ts) ->
       let ctor, hint = show_atomic_type ctor in
       let res =
@@ -116,9 +131,9 @@ let rec show_expr = function
   | Call (f, args) ->
       fmt "%s(%s)" (show_lvalue f) (concat ", " (List.map show_expr args))
   | Lambda body -> fmt "(lambda %s: %s)" arg_var (show_expr body)
-  | Tuple [] -> "()"
-  | Tuple [ arg ] -> fmt "(%s,)" (show_expr arg)
-  | Tuple args -> fmt "(%s)" (concat ", " (List.map show_expr args))
+  | Create_tuple [] -> "()"
+  | Create_tuple [ arg ] -> fmt "(%s,)" (show_expr arg)
+  | Create_tuple args -> fmt "(%s)" (concat ", " (List.map show_expr args))
   | Case_not_none (e1, e2) ->
       fmt "%s if %s is not None else None" (show_expr e2) (show_expr e1)
   | Comprehension (l, e) ->
@@ -223,6 +238,40 @@ let show_item_lines = function
 
 let show_item i = concat "\n" (show_item_lines i)
 let show_stub s = concat "\n\n" (List.map show_item s)
+
+let add_quote_hints stub =
+  let defined = Hashtbl.create 100 in
+  let add_defined s = Hashtbl.add defined s () in
+  let is_defined s = Hashtbl.mem defined s in
+  let visitor =
+    object
+      inherit [_] map as super
+
+      method! visit_Custom () s =
+        if is_defined s then Custom s else Custom (String.make 1 quote_char ^ s)
+
+      method! visit_Declare_enum () name cases =
+        let res = super#visit_Declare_enum () name cases in
+        add_defined name;
+        res
+
+      method! visit_Declare_dataclass () name vars fields =
+        let res = super#visit_Declare_dataclass () name vars fields in
+        add_defined name;
+        res
+
+      method! visit_Declare_typed_dict () name vars def =
+        let res = super#visit_Declare_typed_dict () name vars def in
+        add_defined name;
+        res
+
+      method! visit_Declare_type () name vars def =
+        let res = super#visit_Declare_type () name vars def in
+        add_defined name;
+        res
+    end
+  in
+  visitor#visit_stub () stub
 
 let generate_imports stub =
   let module Queue = Base.Queue in
