@@ -228,6 +228,12 @@ let%expect_test "python stub with dataclasses" =
 
     SimpleAlias: TypeAlias = tuple[int, tuple[str, float]]
 
+    def _ocaml_of_SimpleAlias(x):
+        return (x[0], (x[1][0], x[1][1]))
+
+    def _SimpleAlias_of_ocaml(x):
+        return (x[0], (x[1][0], x[1][1]))
+
     @dataclass
     class C:
         args: tuple[bool, str]
@@ -266,12 +272,24 @@ let%expect_test "python stub with dataclasses" =
 
     Loc: TypeAlias = tuple[int, int, int, int]
 
+    def _ocaml_of_Loc(x):
+        return (x[0], x[1], x[2], x[3])
+
+    def _Loc_of_ocaml(x):
+        return (x[0], x[1], x[2], x[3])
+
     @dataclass
     class WithLoc(Generic[A]):
         data: A
         loc: "Loc"
 
     LocatedName: TypeAlias = "WithLoc[str]"
+
+    def _ocaml_of_LocatedName(x):
+        return _ocaml_of_WithLoc(x, (lambda _x: _x))
+
+    def _LocatedName_of_ocaml(x):
+        return _WithLoc_of_ocaml(x, (lambda _x: _x))
 
     def f(x: int) -> int:
         _ret = _core_internals.f(x)

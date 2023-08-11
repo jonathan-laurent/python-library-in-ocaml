@@ -53,7 +53,7 @@ module Default_encoding (P : Params) : Encoding = struct
           Create_module.internal_module ~generated:P.generated_module
         in
         let body = [ Return (Call (Field (Var internals, name), call_args)) ] in
-        [ Declare_fun { name; args; ret; docstring; body } ]
+        [ Declare_typed_fun { name; args; ret; docstring; body } ]
 end
 
 module Dataclasses_encoding (P : Params) : Encoding = struct
@@ -99,7 +99,22 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
   let compile_type_declaration
       { type_name = name; type_vars = vars; definition } =
     match definition with
-    | Alias t -> [ Declare_type { name; vars; def = Simple t } ]
+    | Alias t ->
+        [
+          Declare_type { name; vars; def = Simple t };
+          Declare_fun
+            {
+              name = ocaml_of_t name;
+              args = "x" :: List.map ocaml_of_t vars;
+              body = [ Return (ocaml_of (Var "x") t) ];
+            };
+          Declare_fun
+            {
+              name = t_of_ocaml name;
+              args = "x" :: List.map t_of_ocaml vars;
+              body = [ Return (of_ocaml (Var "x") t) ];
+            };
+        ]
     | Record fields -> [ Declare_dataclass { name; vars; fields } ]
     | Enum cases -> [ Declare_enum { name; cases } ]
     | Variant cases ->
@@ -131,7 +146,7 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
             Return (of_ocaml (Var ret_var) ret);
           ]
         in
-        [ Declare_fun { name; args; ret; docstring; body } ]
+        [ Declare_typed_fun { name; args; ret; docstring; body } ]
 end
 
 let generate_py_stub ~settings ~lib_name ~generated ~types ~values =

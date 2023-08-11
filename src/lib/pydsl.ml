@@ -39,13 +39,14 @@ type item =
       fields : (string * type_expr) list;
     }
   | Declare_type of { name : string; vars : string list; def : alias_def }
-  | Declare_fun of {
+  | Declare_typed_fun of {
       name : string;
       args : (string * type_expr) list;
       docstring : string option;
       ret : type_expr;
       body : block;
     }
+  | Declare_fun of { name : string; args : string list; body : block }
 
 type stub = item list
 
@@ -148,7 +149,10 @@ let show_item_lines = function
       @ show_fields fields
   | Declare_type { name; def; _ } ->
       [ fmt "%s: TypeAlias = %s" name (show_alias_def def) ]
-  | Declare_fun { name; docstring; args; ret; body } ->
+  | Declare_fun { name; args; body } ->
+      fmt "def %s(%s):" name (concat ", " args)
+      :: List.map indent (show_block body)
+  | Declare_typed_fun { name; docstring; args; ret; body } ->
       let docstring =
         match docstring with
         | None -> []
@@ -195,7 +199,7 @@ let generate_imports stub =
         add ("typing", "TypeAlias");
         add_vars vars;
         process_alias_def def
-    | Declare_fun _ -> ()
+    | Declare_fun _ | Declare_typed_fun _ -> ()
   in
   List.iter process_item stub;
   let import_stmts =
