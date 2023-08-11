@@ -36,7 +36,8 @@ class Var:
 
 @dataclass
 class Add:
-    args: tuple["Expr", "Expr"]
+    arg1: "Expr"
+    arg2: "Expr"
 
 
 Expr: TypeAlias = Union[Constant, Var, Add]
@@ -48,7 +49,7 @@ def _ocaml_of_Expr(x):
         if isinstance(x, Constant)
         else ("Var", (x.arg,))
         if isinstance(x, Var)
-        else ("Add", (_ocaml_of_Expr(x.args[0]), _ocaml_of_Expr(x.args[1])))
+        else ("Add", (_ocaml_of_Expr(x.arg1), _ocaml_of_Expr(x.arg2)))
         if isinstance(x, Add)
         else NotImplemented
     )
@@ -60,7 +61,7 @@ def _Expr_of_ocaml(x):
         if x[0] == "Constant"
         else Var(arg=x[1][0])
         if x[0] == "Var"
-        else Add(args=(_Expr_of_ocaml(x[1][0]), _Expr_of_ocaml(x[1][1])))
+        else Add(arg1=_Expr_of_ocaml(x[1][0]), arg2=_Expr_of_ocaml(x[1][1]))
         if x[0] == "Add"
         else NotImplemented
     )

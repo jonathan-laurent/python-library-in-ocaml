@@ -17,7 +17,7 @@ def test_dataclasses():
     print(mod.fact(5))
 
     valuation = [("x", 5), ("y", 3)]
-    expr = mod.Add((mod.Var("x"), mod.Var("y")))
+    expr = mod.Add(mod.Var("x"), mod.Var("y"))
     print(mod.eval(valuation, expr))
 
     print(mod.custommer_data("Homer Simpson"))

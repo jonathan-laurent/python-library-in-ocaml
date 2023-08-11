@@ -81,13 +81,14 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
   let ocaml_of_t t = "_" ^ "ocaml_of_" ^ t
   let of_ocaml = conv_generic t_of_ocaml
   let ocaml_of = conv_generic ocaml_of_t
+  let ith_arg i = "arg" ^ string_of_int (i + 1)
 
   let dataclass_encoding args =
     match args with
     | Repr.Labeled fields -> fields
     | Repr.Anonymous [] -> []
     | Repr.Anonymous [ x ] -> [ ("arg", x) ]
-    | Repr.Anonymous xs -> [ ("args", Repr.Tuple xs) ]
+    | Repr.Anonymous xs -> List.mapi (fun i a -> (ith_arg i, a)) xs
 
   let variant_union ~vars cases =
     Union
@@ -119,7 +120,7 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
             String_constant ctor; Create_tuple [ ocaml_of (Field (x, "arg")) t ];
           ]
     | Repr.Anonymous args ->
-        let ith i t = ocaml_of (Index (Field (x, "args"), i)) t in
+        let ith i t = ocaml_of (Field (x, ith_arg i)) t in
         Create_tuple [ String_constant ctor; Create_tuple (List.mapi ith args) ]
     | Repr.Labeled fields ->
         Create_tuple [ String_constant ctor; ocaml_of_dataclass x fields ]
@@ -131,7 +132,10 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
           (name, [ ("arg", of_ocaml (Index (Index (x, 1), 0)) t) ])
     | Repr.Anonymous args ->
         Create_dataclass
-          (name, [ ("args", of_ocaml (Index (x, 1)) (Repr.Tuple args)) ])
+          ( name,
+            List.mapi
+              (fun i t -> (ith_arg i, of_ocaml (Index (Index (x, 1), i)) t))
+              args )
     | Repr.Labeled fields -> dataclass_of_ocaml name (Index (x, 1)) fields
 
   let compile_type_declaration

@@ -242,7 +242,8 @@ let%expect_test "python stub with dataclasses" =
 
     @dataclass
     class C:
-        args: tuple[bool, str]
+        arg1: bool
+        arg2: str
 
     @dataclass
     class D:
@@ -256,10 +257,10 @@ let%expect_test "python stub with dataclasses" =
     SumType: TypeAlias = Union[C, D, E]
 
     def _ocaml_of_SumType(x):
-        return ("C", (x.args[0], x.args[1])) if isinstance(x, C) else ("D", (_ocaml_of_EnumType(x.arg),)) if isinstance(x, D) else ("E", {"x": x.x, "y": x.y}) if isinstance(x, E) else NotImplemented
+        return ("C", (x.arg1, x.arg2)) if isinstance(x, C) else ("D", (_ocaml_of_EnumType(x.arg),)) if isinstance(x, D) else ("E", {"x": x.x, "y": x.y}) if isinstance(x, E) else NotImplemented
 
     def _SumType_of_ocaml(x):
-        return C(args=(x[1][0], x[1][1])) if x[0] == "C" else D(arg=_EnumType_of_ocaml(x[1][0])) if x[0] == "D" else E(x=x[1]["x"], y=x[1]["y"]) if x[0] == "E" else NotImplemented
+        return C(arg1=x[1][0], arg2=x[1][1]) if x[0] == "C" else D(arg=_EnumType_of_ocaml(x[1][0])) if x[0] == "D" else E(x=x[1]["x"], y=x[1]["y"]) if x[0] == "E" else NotImplemented
 
     @dataclass
     class L:
