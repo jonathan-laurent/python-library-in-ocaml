@@ -260,15 +260,33 @@ let%expect_test "python stub with dataclasses" =
         x: int
         y: float | None
 
+    def _ocaml_of_RecordType(x):
+        return {"x": x.x, "y": _x if x.y is not None else None}
+
+    def _RecordType_of_ocaml(x):
+        return RecordType(x=x["x"], y=_x if x["y"] is not None else None)
+
     @dataclass
     class RecordTypeAlias:
         x: int
         y: float | None
 
+    def _ocaml_of_RecordTypeAlias(x):
+        return {"x": x.x, "y": _x if x.y is not None else None}
+
+    def _RecordTypeAlias_of_ocaml(x):
+        return RecordTypeAlias(x=x["x"], y=_x if x["y"] is not None else None)
+
     @dataclass
     class Polymorphic(Generic[A, B]):
         x: A
         y: B
+
+    def _ocaml_of_Polymorphic(x, _ocaml_of_A, _ocaml_of_B):
+        return {"x": _ocaml_of_A(x.x), "y": _ocaml_of_B(x.y)}
+
+    def _Polymorphic_of_ocaml(x, _A_of_ocaml, _B_of_ocaml):
+        return Polymorphic(x=_ocaml_of_A(x["x"]), y=_ocaml_of_B(x["y"]))
 
     Loc: TypeAlias = tuple[int, int, int, int]
 
@@ -282,6 +300,12 @@ let%expect_test "python stub with dataclasses" =
     class WithLoc(Generic[A]):
         data: A
         loc: "Loc"
+
+    def _ocaml_of_WithLoc(x, _ocaml_of_A):
+        return {"data": _ocaml_of_A(x.data), "loc": _ocaml_of_Loc(x.loc)}
+
+    def _WithLoc_of_ocaml(x, _A_of_ocaml):
+        return WithLoc(data=_ocaml_of_A(x["data"]), loc=_ocaml_of_Loc(x["loc"]))
 
     LocatedName: TypeAlias = "WithLoc[str]"
 

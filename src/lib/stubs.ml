@@ -96,35 +96,32 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
          (fun (s, _) -> App (Custom s, List.map (fun v -> Repr.Var v) vars))
          cases)
 
+  let make_conv conv ~name ~vars f =
+    Declare_fun
+      {
+        name = conv name;
+        args = "x" :: List.map conv vars;
+        body = [ Return (f (Var "x")) ];
+      }
+
   let compile_type_declaration
       { type_name = name; type_vars = vars; definition } =
     match definition with
     | Alias t ->
         [
           Declare_type { name; vars; def = Simple t };
-          Declare_fun
-            {
-              name = ocaml_of_t name;
-              args = "x" :: List.map ocaml_of_t vars;
-              body = [ Return (ocaml_of (Var "x") t) ];
-            };
-          Declare_fun
-            {
-              name = t_of_ocaml name;
-              args = "x" :: List.map t_of_ocaml vars;
-              body = [ Return (of_ocaml (Var "x") t) ];
-            };
+          make_conv ocaml_of_t ~name ~vars (fun x -> ocaml_of x t);
+          make_conv t_of_ocaml ~name ~vars (fun x -> of_ocaml x t);
         ]
     | Record fields ->
         [
           Declare_dataclass { name; vars; fields };
-          (* Declare_fun
-             (* {"a": "b": "c": ...} *)
-             {
-               name = ocaml_of_t name;
-               args = "x" :: List.map ocaml_of_t vars;
-               body = [ Return () ];
-             }; *)
+          make_conv ocaml_of_t ~name ~vars (fun x ->
+              let init (f, t) = (f, ocaml_of (Field (x, f)) t) in
+              Create_dict (List.map init fields));
+          make_conv t_of_ocaml ~name ~vars (fun x ->
+              let init (f, t) = (f, ocaml_of (Str_index (x, f)) t) in
+              Create_dataclass (name, List.map init fields));
         ]
     | Enum cases -> [ Declare_enum { name; cases } ]
     | Variant cases ->

@@ -7,6 +7,7 @@ type lvalue =
   | Arg
   | Var of string
   | Field of lvalue * string
+  | Str_index of lvalue * string
   | Index of lvalue * int
 
 type expr =
@@ -16,11 +17,12 @@ type expr =
   | Lambda of expr (* lambda _x: #1 *)
   | Case_not_none of expr * expr (* #2 if #1 is not None else None *)
   | Comprehension of expr * expr (* [#2 for _x in #1] *)
-
-(* | Dataclass_of_dict of expr
-   | Dict_of_dataclass of expr
-   | Dataclass_of_mapped_dict of (string * expr) list
-   | Dict_of_mapped_dataclass of (string * expr) list *)
+  | Dataclass_of_dict of string * expr
+  | Dict_of_dataclass of expr
+  | Create_dataclass of string * (string * expr) list
+  | Create_dict of (string * expr) list
+  | Enum_value of lvalue
+  | Str_cases of lvalue * (string * expr) list
 
 type instr = Assign of string * expr | Return of expr
 type block = instr list
@@ -91,6 +93,7 @@ let rec show_lvalue = function
   | Var s -> s
   | Field (l, f) -> fmt "%s.%s" (show_lvalue l) f
   | Index (l, i) -> fmt "%s[%d]" (show_lvalue l) i
+  | Str_index (l, s) -> fmt "%s[%s]" (show_lvalue l) (add_quotes s)
 
 let rec show_expr = function
   | Lvalue v -> show_lvalue v
@@ -104,6 +107,27 @@ let rec show_expr = function
       fmt "%s if %s is not None else None" (show_expr e2) (show_expr e1)
   | Comprehension (l, e) ->
       fmt "[%s for %s in %s]" (show_expr e) arg_var (show_expr l)
+  | Dataclass_of_dict (d, e) -> fmt "%s(**(%s))" d (show_expr e)
+  | Dict_of_dataclass e -> fmt "(%s).__dict__" (show_expr e)
+  | Create_dataclass (d, args) ->
+      fmt "%s(%s)" d
+        (concat ", "
+           (List.map (fun (c, e) -> fmt "%s=%s" c (show_expr e)) args))
+  | Create_dict args ->
+      fmt "{%s}"
+        (concat ", "
+           (List.map
+              (fun (c, e) -> fmt "%s: %s" (add_quotes c) (show_expr e))
+              args))
+  | Enum_value l -> fmt "%s.value" (show_lvalue l)
+  | Str_cases (arg, cases) ->
+      let rec aux = function
+        | [] -> "raise RuntimeError()"
+        | (s, e) :: cases ->
+            fmt "%s if %s == %s else %s" (show_expr e) (show_lvalue arg)
+              (add_quotes s) (aux cases)
+      in
+      aux cases
 
 let show_instr = function
   | Assign (s, e) -> [ fmt "%s = %s" s (show_expr e) ]
