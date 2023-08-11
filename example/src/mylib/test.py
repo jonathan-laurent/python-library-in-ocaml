@@ -12,16 +12,16 @@ def test_normal():
 
 
 def test_dataclasses():
-    from mylib.ocaml_module_dataclasses import fact, Add, Var, eval, custommer_data
+    import mylib.ocaml_module_dataclasses as mod
 
-    print(fact(5))
+    print(mod.fact(5))
 
     valuation = [("x", 5), ("y", 3)]
-    expr = Add((Var("x"), Var("y")))
-    print(eval(valuation, expr))
+    expr = mod.Add((mod.Var("x"), mod.Var("y")))
+    print(mod.eval(valuation, expr))
 
-    print(custommer_data("Homer Simpson"))
-    print(custommer_data("Flanders"))
+    print(mod.custommer_data("Homer Simpson"))
+    print(mod.custommer_data("Flanders"))
 
 
 if __name__ == '__main__':
