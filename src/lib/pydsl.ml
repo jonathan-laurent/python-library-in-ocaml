@@ -171,10 +171,12 @@ let show_instr = function
 
 let show_block b = List.concat_map show_instr b
 
-let show_fields fields =
-  List.map
-    (fun (s, t) -> indent (fmt "%s: %s" s (show_type ~quote:true t)))
-    fields
+let show_fields = function
+  | [] -> [ indent "pass" ]
+  | fields ->
+      List.map
+        (fun (s, t) -> indent (fmt "%s: %s" s (show_type ~quote:true t)))
+        fields
 
 let class_decl name args =
   let parents =
