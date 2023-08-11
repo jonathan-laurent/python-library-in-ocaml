@@ -1,6 +1,9 @@
 (executable
-  (name ocaml_module)
-  (libraries base pyml)
-  (flags :standard -linkall)
-  (modes (native shared_object) native)
-  (preprocess (pps python-libgen.ppx ppx_python)))
+ (name ocaml_module)
+ (libraries base pyml)
+ (flags :standard -linkall)
+ (modes
+  (native shared_object)
+  native)
+ (preprocess
+  (pps python-libgen.ppx ppx_python)))

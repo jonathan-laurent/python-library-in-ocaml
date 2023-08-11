@@ -1,4 +1,4 @@
-type settings = {use_dataclasses: bool}
+type settings = { use_dataclasses : bool }
 
 [@@@warning "-32"]
 
@@ -8,13 +8,12 @@ let lookup_template filename =
   List.find_map
     (fun dir ->
       let filename' = Filename.concat dir filename in
-      if Sys.file_exists filename' then Some filename' else None )
+      if Sys.file_exists filename' then Some filename' else None)
     templates_locations
   |> Base.Option.value_exn ~message:("Not found: templates/" ^ filename)
 
 module type Encoding = sig
   val compile_type_declaration : Repr.type_declaration -> Pydsl.item list
-
   val compile_value_declaration : 'a Repr.value -> Pydsl.item list
 end
 
@@ -29,36 +28,32 @@ module Default_encoding (P : Params) : Encoding = struct
   open Pydsl
 
   let dump_labels = function
-    | Repr.Anonymous ts ->
-        ts
-    | Labeled lts ->
-        List.map snd lts
+    | Repr.Anonymous ts -> ts
+    | Labeled lts -> List.map snd lts
 
-  let compile_type_declaration {type_name= name; type_vars= vars; definition} =
+  let compile_type_declaration
+      { type_name = name; type_vars = vars; definition } =
     match definition with
-    | Alias t ->
-        [Declare_type {name; vars; def= Simple t}]
-    | Record fields ->
-        [Declare_typed_dict {name; vars; fields}]
+    | Alias t -> [ Declare_type { name; vars; def = Simple t } ]
+    | Record fields -> [ Declare_typed_dict { name; vars; fields } ]
     | Enum cases ->
         let cases = List.map (fun s -> (s, [])) cases in
-        [Declare_type {name; vars; def= Tagged_union cases}]
+        [ Declare_type { name; vars; def = Tagged_union cases } ]
     | Variant cases ->
         let cases = List.map (fun (s, c) -> (s, dump_labels c)) cases in
-        [Declare_type {name; vars; def= Tagged_union cases}]
+        [ Declare_type { name; vars; def = Tagged_union cases } ]
 
-  let compile_value_declaration {name; signature; _} =
+  let compile_value_declaration { name; signature; _ } =
     match signature with
-    | Repr.Constant _ ->
-        assert false
-    | Repr.Function {args; ret} ->
+    | Repr.Constant _ -> assert false
+    | Repr.Function { args; ret } ->
         let docstring = Register.registered_python_docstring name in
         let call_args = List.map (fun (a, _) -> Lvalue (Var a)) args in
         let internals =
           Create_module.internal_module ~generated:P.generated_module
         in
-        let body = [Return (Call (Field (Var internals, name), call_args))] in
-        [Declare_fun {name; args; ret; docstring; body}]
+        let body = [ Return (Call (Field (Var internals, name), call_args)) ] in
+        [ Declare_fun { name; args; ret; docstring; body } ]
 end
 
 module Dataclasses_encoding (Params : Params) : Encoding = struct
@@ -66,47 +61,35 @@ module Dataclasses_encoding (Params : Params) : Encoding = struct
     let open Pydsl in
     let rec aux ~env lval t =
       match t with
-      | Repr.Var v ->
-          Call (Var (conv_name v), [Lvalue lval])
+      | Repr.Var v -> Call (Var (conv_name v), [ Lvalue lval ])
       | App (ctor, ts) -> (
-        match ctor with
-        | Int | Bool | Float | String | Unit ->
-            Lvalue lval
-        | Custom u ->
-            Call
-              ( Var (conv_name u)
-              , Lvalue lval :: List.map (fun t -> Lambda (aux ~env Arg t)) ts )
-        )
+          match ctor with
+          | Int | Bool | Float | String | Unit -> Lvalue lval
+          | Custom u ->
+              Call
+                ( Var (conv_name u),
+                  Lvalue lval :: List.map (fun t -> Lambda (aux ~env Arg t)) ts
+                ))
       | Tuple ts ->
           Tuple (List.mapi (fun i t -> aux ~env (Index (lval, i)) t) ts)
-      | List t | Array t ->
-          Comprehension (Lvalue lval, aux ~env Arg t)
-      | Option t ->
-          Case_not_none (Lvalue lval, aux ~env Arg t)
+      | List t | Array t -> Comprehension (Lvalue lval, aux ~env Arg t)
+      | Option t -> Case_not_none (Lvalue lval, aux ~env Arg t)
     in
     aux
 
   let t_of_ocaml t = "_" ^ t ^ "_of_ocaml"
-
   let ocaml_of_t t = "_" ^ "ocaml_of_" ^ t
-
   let of_ocaml = conv_generic t_of_ocaml
-
   let ocaml_of = conv_generic ocaml_of_t
 
   let dataclass_encoding args =
     match args with
-    | Repr.Labeled fields ->
-        fields
-    | Repr.Anonymous [] ->
-        []
-    | Repr.Anonymous [x] ->
-        [("arg", x)]
-    | Repr.Anonymous xs ->
-        [("args", Repr.Tuple xs)]
+    | Repr.Labeled fields -> fields
+    | Repr.Anonymous [] -> []
+    | Repr.Anonymous [ x ] -> [ ("arg", x) ]
+    | Repr.Anonymous xs -> [ ("args", Repr.Tuple xs) ]
 
   let compile_type_declaration = function _ -> assert false
-
   let compile_value_declaration = function _ -> assert false
 end
 
@@ -120,9 +103,9 @@ let generate_py_stub ~settings:_ ~lib_name ~generated ~types ~values =
   in
   let (module E : Encoding) =
     let (module Params : Params) =
-      ( module struct
+      (module struct
         let generated_module = generated
-      end )
+      end)
     in
     (* if settings.use_dataclasses then (module Dataclasses_encoding (Params))
        else (module Default_encoding (Params)) *)
@@ -133,4 +116,4 @@ let generate_py_stub ~settings:_ ~lib_name ~generated ~types ~values =
     @ List.concat_map E.compile_value_declaration values
   in
   String.concat "\n\n"
-    ([prelude] @ Pydsl.generate_imports stub @ [Pydsl.show_stub stub])
+    ([ prelude ] @ Pydsl.generate_imports stub @ [ Pydsl.show_stub stub ])

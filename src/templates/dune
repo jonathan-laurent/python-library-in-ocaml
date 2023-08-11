@@ -1,3 +1,5 @@
 (install
- (section (site (python-libgen templates)))
+ (section
+  (site
+   (python-libgen templates)))
  (files stub.py))

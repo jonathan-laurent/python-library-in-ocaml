@@ -2,7 +2,5 @@
  (name test)
  (libraries base stdio python-libgen)
  (inline_tests)
- (preprocess (staged_pps
-   python-libgen.ppx
-   ppx_python
-   ppx_jane)))
+ (preprocess
+  (staged_pps python-libgen.ppx ppx_python ppx_jane)))

@@ -24,15 +24,21 @@ type type_definition =
   | Variant of (string * variant_args) list
 [@@deriving sexp]
 
-type type_declaration =
-  {type_name: string; type_vars: string list; definition: type_definition}
+type type_declaration = {
+  type_name : string;
+  type_vars : string list;
+  definition : type_definition;
+}
 [@@deriving sexp]
 
 type value_signature =
   | Constant of type_expr
-  | Function of {args: (string * type_expr) list; ret: type_expr}
+  | Function of { args : (string * type_expr) list; ret : type_expr }
 [@@deriving sexp]
 
-type 'a value =
-  {convert: unit -> 'a [@sexp.opaque]; name: string; signature: value_signature}
+type 'a value = {
+  convert : unit -> 'a; [@sexp.opaque]
+  name : string;
+  signature : value_signature;
+}
 [@@deriving sexp]
