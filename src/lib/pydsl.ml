@@ -186,7 +186,9 @@ let generic = function
   | [] -> []
   | vars -> [ fmt "Generic[%s]" (concat ", " vars) ]
 
-let make_union args = fmt "Union[%s]" (concat ", " args)
+let make_union = function
+  | [ arg ] -> arg
+  | args -> fmt "Union[%s]" (concat ", " args)
 
 let show_alias_def = function
   | Simple t -> show_type ~quote:true t
