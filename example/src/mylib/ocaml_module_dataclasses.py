@@ -36,10 +36,10 @@ class Var:
 
 @dataclass
 class Add:
-    args: tuple["Expr", "Expr"]
+    args: tuple[Expr, Expr]
 
 
-Expr: TypeAlias = Union["Constant", "Var", "Add"]
+Expr: TypeAlias = Union[Constant, Var, Add]
 
 
 def _ocaml_of_Expr(x):
@@ -76,7 +76,7 @@ class Error(Generic[A]):
     arg: str
 
 
-Result: TypeAlias = Union["Answer[A]", "Error[A]"]
+Result: TypeAlias = Union[Answer[A], Error[A]]
 
 
 def _ocaml_of_Result(x, _ocaml_of_A):

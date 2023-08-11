@@ -2,6 +2,7 @@
    by either [Lambda] or [Comprehension]. *)
 
 let arg_var = "_x"
+let quote_char = ':'
 
 type lvalue =
   | Arg
@@ -64,29 +65,35 @@ let fmt = Printf.sprintf
 let concat sep = Base.String.concat ~sep
 let indent s = "    " ^ s
 let add_quotes s = "\"" ^ s ^ "\""
-let quote_opt ~quote s = if quote then add_quotes s else s
 
-let show_atomic_type ~quote =
+type quoting_hint = Quote | No_quote
+
+let extract_quoting_hint s =
+  if s.[0] = quote_char then (String.sub s 1 (String.length s - 1), Quote)
+  else (s, No_quote)
+
+let show_atomic_type =
   let open Repr in
   function
-  | Bool -> "bool"
-  | Int -> "int"
-  | Float -> "float"
-  | String -> "str"
-  | Unit -> "None"
-  | Custom s -> quote_opt ~quote s
+  | Bool -> ("bool", No_quote)
+  | Int -> ("int", No_quote)
+  | Float -> ("float", No_quote)
+  | String -> ("str", No_quote)
+  | Unit -> ("None", No_quote)
+  | Custom s -> extract_quoting_hint s
 
 let rec show_type ~quote t =
   let open Repr in
   match t with
   | Var s -> s
-  | App (ctor, []) -> show_atomic_type ~quote ctor
   | App (ctor, ts) ->
-      quote_opt ~quote
-        (show_atomic_type ~quote:false ctor
-        ^ "["
-        ^ concat ", " (List.map (show_type ~quote:false) ts)
-        ^ "]")
+      let ctor, hint = show_atomic_type ctor in
+      let res =
+        if ts = [] then ctor
+        else
+          fmt "%s[%s]" ctor (concat ", " (List.map (show_type ~quote:false) ts))
+      in
+      if quote && hint = Quote then add_quotes res else res
   | Tuple ts -> "tuple[" ^ concat ", " (List.map (show_type ~quote) ts) ^ "]"
   | List t | Array t -> "list[" ^ show_type ~quote t ^ "]"
   | Option t -> show_type ~quote t ^ " | None"
