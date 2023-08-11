@@ -115,7 +115,17 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
               body = [ Return (of_ocaml (Var "x") t) ];
             };
         ]
-    | Record fields -> [ Declare_dataclass { name; vars; fields } ]
+    | Record fields ->
+        [
+          Declare_dataclass { name; vars; fields };
+          (* Declare_fun
+             (* {"a": "b": "c": ...} *)
+             {
+               name = ocaml_of_t name;
+               args = "x" :: List.map ocaml_of_t vars;
+               body = [ Return () ];
+             }; *)
+        ]
     | Enum cases -> [ Declare_enum { name; cases } ]
     | Variant cases ->
         let children =

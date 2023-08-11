@@ -17,6 +17,11 @@ type expr =
   | Case_not_none of expr * expr (* #2 if #1 is not None else None *)
   | Comprehension of expr * expr (* [#2 for _x in #1] *)
 
+(* | Dataclass_of_dict of expr
+   | Dict_of_dataclass of expr
+   | Dataclass_of_mapped_dict of (string * expr) list
+   | Dict_of_mapped_dataclass of (string * expr) list *)
+
 type instr = Assign of string * expr | Return of expr
 type block = instr list
 type type_expr = Repr.type_expr
