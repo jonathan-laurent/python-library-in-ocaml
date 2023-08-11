@@ -226,6 +226,12 @@ let%expect_test "python stub with dataclasses" =
         A = "A"
         B = "B"
 
+    def _ocaml_of_EnumType(x):
+        return x.value
+
+    def _EnumType_of_ocaml(x):
+        return EnumType.A if x == "A" else EnumType.B if x == "B" else raise RuntimeError()
+
     SimpleAlias: TypeAlias = tuple[int, tuple[str, float]]
 
     def _ocaml_of_SimpleAlias(x):

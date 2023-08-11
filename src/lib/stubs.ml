@@ -123,7 +123,14 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
               let init (f, t) = (f, ocaml_of (Str_index (x, f)) t) in
               Create_dataclass (name, List.map init fields));
         ]
-    | Enum cases -> [ Declare_enum { name; cases } ]
+    | Enum cases ->
+        [
+          Declare_enum { name; cases };
+          make_conv ocaml_of_t ~name ~vars (fun x -> Enum_value x);
+          make_conv t_of_ocaml ~name ~vars (fun x ->
+              let case s = (s, Lvalue (Field (Var name, s))) in
+              Str_cases (x, List.map case cases));
+        ]
     | Variant cases ->
         let children =
           List.map
