@@ -133,7 +133,7 @@ let%expect_test "python stub without dataclasses" =
     import _core_internals  # type: ignore
 
 
-    from typing import Generic, Literal, TypeALias, TypeVar, TypedDict
+    from typing import Generic, Literal, TypeAlias, TypeVar, TypedDict
 
     A = TypeVar("A")
 
@@ -168,26 +168,26 @@ let%expect_test "python stub without dataclasses" =
     LocatedName: TypeAlias = "WithLoc[str]"
 
     def f(x: int) -> int:
-        return core.f(x)
+        return _core_internals.f(x)
 
     def fact(n: int) -> int:
         """
         Compute the factorial of an integer number.
         Return 1 on negative inputs.
         """
-        return core.fact(n)
+        return _core_internals.fact(n)
 
     def two_poly(a: int, b: str) -> tuple[Polymorphic[int, str], Polymorphic[str, int]]:
-        return core.two_poly(a, b)
+        return _core_internals.two_poly(a, b)
 
     def list_poly(a: int, b: str) -> list[Polymorphic[int, str]]:
-        return core.list_poly(a, b)
+        return _core_internals.list_poly(a, b)
 
     def sum(l: list[int]) -> int:
-        return core.sum(l)
+        return _core_internals.sum(l)
 
     def make_record(x: int) -> RecordType:
-        return core.make_record(x) |}]
+        return _core_internals.make_record(x) |}]
 
 let%expect_test "python stub with dataclasses" =
   test ~use_dataclasses:true;
@@ -212,58 +212,85 @@ let%expect_test "python stub with dataclasses" =
     import _core_internals  # type: ignore
 
 
-    from typing import Generic, Literal, TypeALias, TypeVar, TypedDict
+    from dataclass import dataclass
+
+    from enum import Enum
+
+    from typing import Generic, TypeAlias, TypeVar
 
     A = TypeVar("A")
 
     B = TypeVar("B")
 
-    EnumType: TypeAlias = tuple[Literal["A"], None] | tuple[Literal["B"], None]
+    class EnumType(Enum):
+        A = "A"
+        B = "B"
 
     SimpleAlias: TypeAlias = tuple[int, tuple[str, float]]
 
-    SumType: TypeAlias = tuple[Literal["C"], tuple[bool, str]] | tuple[Literal["D"], tuple["EnumType"]] | tuple[Literal["E"], tuple[int, bool]]
+    @dataclass
+    class C:
+        args: tuple[bool, str]
 
-    TypeWithLists: TypeAlias = tuple[Literal["L"], tuple[list[int | None]]]
+    @dataclass
+    class D:
+        arg: "EnumType"
 
-    class RecordType(TypedDict, total=True):
+    @dataclass
+    class E:
+        x: int
+        y: bool
+
+    SumType: TypeAlias = "C" | "D" | "E"
+
+    @dataclass
+    class L:
+        arg: list[int | None]
+
+    TypeWithLists: TypeAlias = "L"
+
+    @dataclass
+    class RecordType:
         x: int
         y: float | None
 
-    class RecordTypeAlias(TypedDict, total=True):
+    @dataclass
+    class RecordTypeAlias:
         x: int
         y: float | None
 
-    class Polymorphic(TypedDict, Generic[A, B], total=True):
+    @dataclass
+    class Polymorphic(Generic[A, B]):
         x: A
         y: B
 
     Loc: TypeAlias = tuple[int, int, int, int]
 
-    class WithLoc(TypedDict, Generic[A], total=True):
+    @dataclass
+    class WithLoc(Generic[A]):
         data: A
         loc: "Loc"
 
     LocatedName: TypeAlias = "WithLoc[str]"
 
     def f(x: int) -> int:
-        return core.f(x)
+        return _core_internals.f(x)
 
     def fact(n: int) -> int:
         """
         Compute the factorial of an integer number.
         Return 1 on negative inputs.
         """
-        return core.fact(n)
+        return _core_internals.fact(n)
 
     def two_poly(a: int, b: str) -> tuple[Polymorphic[int, str], Polymorphic[str, int]]:
-        return core.two_poly(a, b)
+        return _core_internals.two_poly(a, b)
 
     def list_poly(a: int, b: str) -> list[Polymorphic[int, str]]:
-        return core.list_poly(a, b)
+        return _core_internals.list_poly(a, b)
 
     def sum(l: list[int]) -> int:
-        return core.sum(l)
+        return _core_internals.sum(l)
 
     def make_record(x: int) -> RecordType:
-        return core.make_record(x) |}]
+        return _core_internals.make_record(x) |}]

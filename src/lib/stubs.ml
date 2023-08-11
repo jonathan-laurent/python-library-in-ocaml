@@ -92,21 +92,29 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
     | Repr.Anonymous [ x ] -> [ ("arg", x) ]
     | Repr.Anonymous xs -> [ ("args", Repr.Tuple xs) ]
 
-  let dump_labels = function
-    | Repr.Anonymous ts -> ts
-    | Labeled lts -> List.map snd lts
+  let variant_union ~vars cases =
+    Union
+      (List.map
+         (fun (s, _) -> App (Custom s, List.map (fun v -> Repr.Var v) vars))
+         cases)
 
   let compile_type_declaration
       { type_name = name; type_vars = vars; definition } =
     match definition with
     | Alias t -> [ Declare_type { name; vars; def = Simple t } ]
-    | Record fields -> [ Declare_typed_dict { name; vars; fields } ]
-    | Enum cases ->
-        let cases = List.map (fun s -> (s, [])) cases in
-        [ Declare_type { name; vars; def = Tagged_union cases } ]
+    | Record fields -> [ Declare_dataclass { name; vars; fields } ]
+    | Enum cases -> [ Declare_enum { name; cases } ]
     | Variant cases ->
-        let cases = List.map (fun (s, c) -> (s, dump_labels c)) cases in
-        [ Declare_type { name; vars; def = Tagged_union cases } ]
+        let children =
+          List.map
+            (fun (s, c) ->
+              let fields = dataclass_encoding c in
+              Declare_dataclass { name = s; vars; fields })
+            cases
+        and union =
+          Declare_type { name; vars; def = variant_union ~vars cases }
+        in
+        children @ [ union ]
 
   let compile_value_declaration { name; signature; _ } =
     match signature with
