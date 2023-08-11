@@ -255,11 +255,23 @@ let%expect_test "python stub with dataclasses" =
 
     SumType: TypeAlias = "C" | "D" | "E"
 
+    def _ocaml_of_SumType(x):
+        return ("C", (x.args[0], x.args[1])) if isinstance(x, C) else ("D", (_ocaml_of_EnumType(x.arg),)) if isinstance(x, D) else ("E", {"x": x.x, "y": x.y}) if isinstance(x, E) else raise RuntimeError()
+
+    def _SumType_of_ocaml(x):
+        return C(args=(x[1][0], x[1][1])) if x[0] == "C" else D(arg=_EnumType_of_ocaml(x[1][0])) if x[0] == "D" else E(x=x[1]["x"], y=x[1]["y"]) if x[0] == "E" else raise RuntimeError()
+
     @dataclass
     class L:
         arg: list[int | None]
 
     TypeWithLists: TypeAlias = "L"
+
+    def _ocaml_of_TypeWithLists(x):
+        return ("L", ([_x if _x is not None else None for _x in x.arg],)) if isinstance(x, L) else raise RuntimeError()
+
+    def _TypeWithLists_of_ocaml(x):
+        return L(arg=[_x if _x is not None else None for _x in x[1][0]]) if x[0] == "L" else raise RuntimeError()
 
     @dataclass
     class RecordType:
@@ -292,7 +304,7 @@ let%expect_test "python stub with dataclasses" =
         return {"x": _ocaml_of_A(x.x), "y": _ocaml_of_B(x.y)}
 
     def _Polymorphic_of_ocaml(x, _A_of_ocaml, _B_of_ocaml):
-        return Polymorphic(x=_ocaml_of_A(x["x"]), y=_ocaml_of_B(x["y"]))
+        return Polymorphic(x=_A_of_ocaml(x["x"]), y=_B_of_ocaml(x["y"]))
 
     Loc: TypeAlias = tuple[int, int, int, int]
 
@@ -311,7 +323,7 @@ let%expect_test "python stub with dataclasses" =
         return {"data": _ocaml_of_A(x.data), "loc": _ocaml_of_Loc(x.loc)}
 
     def _WithLoc_of_ocaml(x, _A_of_ocaml):
-        return WithLoc(data=_ocaml_of_A(x["data"]), loc=_ocaml_of_Loc(x["loc"]))
+        return WithLoc(data=_A_of_ocaml(x["data"]), loc=_Loc_of_ocaml(x["loc"]))
 
     LocatedName: TypeAlias = "WithLoc[str]"
 

@@ -17,24 +17,100 @@ dll.caml_startup(argv)
 import _ocaml_module_internals  # type: ignore
 
 
-from typing import Literal, TypeAlias, TypeVar, TypedDict
+from dataclasses import dataclass
+
+from typing import Generic, TypeAlias, TypeVar, Union
 
 A = TypeVar("A")
 
-Expr: TypeAlias = (
-    tuple[Literal["Constant"], tuple[int]]
-    | tuple[Literal["Var"], tuple[str]]
-    | tuple[Literal["Add"], tuple["Expr", "Expr"]]
-)
 
-Result: TypeAlias = (
-    tuple[Literal["Answer"], tuple[A]] | tuple[Literal["Error"], tuple[str]]
-)
+@dataclass
+class Constant:
+    arg: int
 
 
-class CustommerData(TypedDict, total=True):
+@dataclass
+class Var:
+    arg: str
+
+
+@dataclass
+class Add:
+    args: tuple["Expr", "Expr"]
+
+
+Expr: TypeAlias = Union["Constant", "Var", "Add"]
+
+
+def _ocaml_of_Expr(x):
+    return (
+        ("Constant", (x.arg,))
+        if isinstance(x, Constant)
+        else ("Var", (x.arg,))
+        if isinstance(x, Var)
+        else ("Add", (_ocaml_of_Expr(x.args[0]), _ocaml_of_Expr(x.args[1])))
+        if isinstance(x, Add)
+        else NotImplemented
+    )
+
+
+def _Expr_of_ocaml(x):
+    return (
+        Constant(arg=x[1][0])
+        if x[0] == "Constant"
+        else Var(arg=x[1][0])
+        if x[0] == "Var"
+        else Add(args=(_Expr_of_ocaml(x[1][0]), _Expr_of_ocaml(x[1][1])))
+        if x[0] == "Add"
+        else NotImplemented
+    )
+
+
+@dataclass
+class Answer(Generic[A]):
+    arg: A
+
+
+@dataclass
+class Error(Generic[A]):
+    arg: str
+
+
+Result: TypeAlias = Union["Answer[A]", "Error[A]"]
+
+
+def _ocaml_of_Result(x, _ocaml_of_A):
+    return (
+        ("Answer", (_ocaml_of_A(x.arg),))
+        if isinstance(x, Answer)
+        else ("Error", (x.arg,))
+        if isinstance(x, Error)
+        else NotImplemented
+    )
+
+
+def _Result_of_ocaml(x, _A_of_ocaml):
+    return (
+        Answer(arg=_A_of_ocaml(x[1][0]))
+        if x[0] == "Answer"
+        else Error(arg=x[1][0])
+        if x[0] == "Error"
+        else NotImplemented
+    )
+
+
+@dataclass
+class CustommerData:
     age: int
     gender: str
+
+
+def _ocaml_of_CustommerData(x):
+    return {"age": x.age, "gender": x.gender}
+
+
+def _CustommerData_of_ocaml(x):
+    return CustommerData(age=x["age"], gender=x["gender"])
 
 
 def eval(valuation: list[tuple[str, int]], expr: Expr) -> int | None:
@@ -42,12 +118,17 @@ def eval(valuation: list[tuple[str, int]], expr: Expr) -> int | None:
     Evaluate an expression given a valuation that maps variables
     to values. Return None if a variable does not appear in the valuation.
     """
-    return _ocaml_module_internals.eval(valuation, expr)
+    _ret = _ocaml_module_internals.eval(
+        [(_x[0], _x[1]) for _x in valuation], _ocaml_of_Expr(expr)
+    )
+    return _ret if _ret is not None else None
 
 
 def fact(n: int) -> int:
-    return _ocaml_module_internals.fact(n)
+    _ret = _ocaml_module_internals.fact(n)
+    return _ret
 
 
 def custommer_data(name: str) -> Result[CustommerData]:
-    return _ocaml_module_internals.custommer_data(name)
+    _ret = _ocaml_module_internals.custommer_data(name)
+    return _Result_of_ocaml(_ret, (lambda _x: _CustommerData_of_ocaml(_x)))

@@ -1,7 +1,5 @@
 type settings = { use_dataclasses : bool }
 
-[@@@warning "-32"]
-
 let templates_locations = Sites.Sites.templates
 
 let lookup_template filename =
@@ -74,7 +72,7 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
                   Lvalue lval :: List.map (fun t -> Lambda (aux Arg t)) ts ))
       | Tuple ts -> Tuple (List.mapi (fun i t -> aux (Index (lval, i)) t) ts)
       | List t | Array t -> Comprehension (Lvalue lval, aux Arg t)
-      | Option t -> Case_not_none (Lvalue lval, aux Arg t)
+      | Option t -> Case_not_none (Lvalue lval, aux lval t)
     in
     aux
 
@@ -104,6 +102,34 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
         body = [ Return (f (Var "x")) ];
       }
 
+  let ocaml_of_dataclass x fields =
+    let init (f, t) = (f, ocaml_of (Field (x, f)) t) in
+    Create_dict (List.map init fields)
+
+  let dataclass_of_ocaml name x fields =
+    let init (f, t) = (f, of_ocaml (Str_index (x, f)) t) in
+    Create_dataclass (name, List.map init fields)
+
+  let ocaml_of_variant x ctor = function
+    | Repr.Anonymous [] -> Tuple [ String_constant ctor; None_constant ]
+    | Repr.Anonymous [ t ] ->
+        Tuple [ String_constant ctor; Tuple [ ocaml_of (Field (x, "arg")) t ] ]
+    | Repr.Anonymous args ->
+        let ith i t = ocaml_of (Index (Field (x, "args"), i)) t in
+        Tuple [ String_constant ctor; Tuple (List.mapi ith args) ]
+    | Repr.Labeled fields ->
+        Tuple [ String_constant ctor; ocaml_of_dataclass x fields ]
+
+  let variant_of_ocaml name x = function
+    | Repr.Anonymous [] -> Create_dataclass (name, [])
+    | Repr.Anonymous [ t ] ->
+        Create_dataclass
+          (name, [ ("arg", of_ocaml (Index (Index (x, 1), 0)) t) ])
+    | Repr.Anonymous args ->
+        Create_dataclass
+          (name, [ ("args", of_ocaml (Index (x, 1)) (Repr.Tuple args)) ])
+    | Repr.Labeled fields -> dataclass_of_ocaml name (Index (x, 1)) fields
+
   let compile_type_declaration
       { type_name = name; type_vars = vars; definition } =
     match definition with
@@ -117,11 +143,9 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
         [
           Declare_dataclass { name; vars; fields };
           make_conv ocaml_of_t ~name ~vars (fun x ->
-              let init (f, t) = (f, ocaml_of (Field (x, f)) t) in
-              Create_dict (List.map init fields));
+              ocaml_of_dataclass x fields);
           make_conv t_of_ocaml ~name ~vars (fun x ->
-              let init (f, t) = (f, ocaml_of (Str_index (x, f)) t) in
-              Create_dataclass (name, List.map init fields));
+              dataclass_of_ocaml name x fields);
         ]
     | Enum cases ->
         [
@@ -138,10 +162,18 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
               let fields = dataclass_encoding c in
               Declare_dataclass { name = s; vars; fields })
             cases
-        and union =
-          Declare_type { name; vars; def = variant_union ~vars cases }
+        and union = Declare_type { name; vars; def = variant_union ~vars cases }
+        and conversions =
+          [
+            make_conv ocaml_of_t ~name ~vars (fun x ->
+                let case (s, args) = (s, ocaml_of_variant x s args) in
+                Type_cases (x, List.map case cases));
+            make_conv t_of_ocaml ~name ~vars (fun x ->
+                let case (s, args) = (s, variant_of_ocaml s x args) in
+                Str_cases (Index (x, 0), List.map case cases));
+          ]
         in
-        children @ [ union ]
+        children @ [ union ] @ conversions
 
   let ret_var = "_ret"
 

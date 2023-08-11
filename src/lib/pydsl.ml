@@ -11,6 +11,8 @@ type lvalue =
   | Index of lvalue * int
 
 type expr =
+  | None_constant
+  | String_constant of string
   | Lvalue of lvalue
   | Call of lvalue * expr list
   | Tuple of expr list
@@ -23,6 +25,7 @@ type expr =
   | Create_dict of (string * expr) list
   | Enum_value of lvalue
   | Str_cases of lvalue * (string * expr) list
+  | Type_cases of lvalue * (string * expr) list
 
 type instr = Assign of string * expr | Return of expr
 type block = instr list
@@ -95,7 +98,13 @@ let rec show_lvalue = function
   | Index (l, i) -> fmt "%s[%d]" (show_lvalue l) i
   | Str_index (l, s) -> fmt "%s[%s]" (show_lvalue l) (add_quotes s)
 
+let rec show_if_chain = function
+  | [] -> "NotImplemented"
+  | (c, e) :: cases -> fmt "%s if %s else %s" e c (show_if_chain cases)
+
 let rec show_expr = function
+  | None_constant -> "None"
+  | String_constant s -> add_quotes s
   | Lvalue v -> show_lvalue v
   | Call (f, args) ->
       fmt "%s(%s)" (show_lvalue f) (concat ", " (List.map show_expr args))
@@ -109,6 +118,7 @@ let rec show_expr = function
       fmt "[%s for %s in %s]" (show_expr e) arg_var (show_expr l)
   | Dataclass_of_dict (d, e) -> fmt "%s(**(%s))" d (show_expr e)
   | Dict_of_dataclass e -> fmt "(%s).__dict__" (show_expr e)
+  | Create_dataclass (d, []) -> fmt "%s()" d
   | Create_dataclass (d, args) ->
       fmt "%s(%s)" d
         (concat ", "
@@ -121,13 +131,17 @@ let rec show_expr = function
               args))
   | Enum_value l -> fmt "%s.value" (show_lvalue l)
   | Str_cases (arg, cases) ->
-      let rec aux = function
-        | [] -> "raise RuntimeError()"
-        | (s, e) :: cases ->
-            fmt "%s if %s == %s else %s" (show_expr e) (show_lvalue arg)
-              (add_quotes s) (aux cases)
-      in
-      aux cases
+      show_if_chain
+        (List.map
+           (fun (s, e) ->
+             (fmt "%s == %s" (show_lvalue arg) (add_quotes s), show_expr e))
+           cases)
+  | Type_cases (arg, cases) ->
+      show_if_chain
+        (List.map
+           (fun (s, e) ->
+             (fmt "isinstance(%s, %s)" (show_lvalue arg) s, show_expr e))
+           cases)
 
 let show_instr = function
   | Assign (s, e) -> [ fmt "%s = %s" s (show_expr e) ]
@@ -150,16 +164,18 @@ let generic = function
   | [] -> []
   | vars -> [ fmt "Generic[%s]" (concat ", " vars) ]
 
+let make_union args = fmt "Union[%s]" (concat ", " args)
+
 let show_alias_def = function
   | Simple t -> show_type ~quote:true t
-  | Union ts -> concat " | " (List.map (show_type ~quote:true) ts)
+  | Union ts -> make_union (List.map (show_type ~quote:true) ts)
   | Tagged_union ctors ->
       let aux (tag, ts) =
         fmt "tuple[Literal[\"%s\"], %s]" tag
           (show_type ~quote:true
              (if ts = [] then Repr.(App (Unit, [])) else Repr.Tuple ts))
       in
-      concat " | " (List.map aux ctors)
+      make_union (List.map aux ctors)
 
 let indent_docstring s =
   Base.String.split_lines s
@@ -213,13 +229,16 @@ let generate_imports stub =
       add ("typing", "TypeVar"))
   in
   let process_alias_def = function
-    | Tagged_union _ -> add ("typing", "Literal")
+    | Tagged_union _ ->
+        add ("typing", "Literal");
+        add ("typing", "Union")
+    | Union _ -> add ("typing", "Union")
     | _ -> ()
   in
   let process_item = function
     | Declare_enum _ -> add ("enum", "Enum")
     | Declare_dataclass { vars; _ } ->
-        add ("dataclass", "dataclass");
+        add ("dataclasses", "dataclass");
         add_vars ~import_generic:true vars
     | Declare_typed_dict { vars; _ } ->
         add ("typing", "TypedDict");

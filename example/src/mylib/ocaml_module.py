@@ -17,19 +17,19 @@ dll.caml_startup(argv)
 import _ocaml_module_internals  # type: ignore
 
 
-from typing import Literal, TypeAlias, TypeVar, TypedDict
+from typing import Literal, TypeAlias, TypeVar, TypedDict, Union
 
 A = TypeVar("A")
 
-Expr: TypeAlias = (
-    tuple[Literal["Constant"], tuple[int]]
-    | tuple[Literal["Var"], tuple[str]]
-    | tuple[Literal["Add"], tuple["Expr", "Expr"]]
-)
+Expr: TypeAlias = Union[
+    tuple[Literal["Constant"], tuple[int]],
+    tuple[Literal["Var"], tuple[str]],
+    tuple[Literal["Add"], tuple["Expr", "Expr"]],
+]
 
-Result: TypeAlias = (
-    tuple[Literal["Answer"], tuple[A]] | tuple[Literal["Error"], tuple[str]]
-)
+Result: TypeAlias = Union[
+    tuple[Literal["Answer"], tuple[A]], tuple[Literal["Error"], tuple[str]]
+]
 
 
 class CustommerData(TypedDict, total=True):
