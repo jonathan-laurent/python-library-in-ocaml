@@ -1,7 +1,7 @@
 import timeit
 
 
-def profile(f, n=10_000):
+def profile(f, n=100_000):
     t0 = timeit.default_timer()
     for i in range(n):
         f()
