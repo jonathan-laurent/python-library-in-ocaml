@@ -6,6 +6,7 @@ def test_normal():
     valuation = [("x", 5), ("y", 3)]
     expr = ("Add", (("Var", ("x",)), ("Var", ("y",))))
     print(mod.eval(valuation, expr))
+    print(mod.example_expr)
 
     print(mod.custommer_data("Homer Simpson"))
     print(mod.custommer_data("Flanders"))
@@ -22,6 +23,7 @@ def test_dataclasses():
     valuation = [("x", 5), ("y", 3)]
     expr = mod.Add(mod.Var("x"), mod.Var("y"))
     print(mod.eval(valuation, expr))
+    print(mod.example_expr)
 
     print(mod.custommer_data("Homer Simpson"))
     print(mod.custommer_data("Flanders"))

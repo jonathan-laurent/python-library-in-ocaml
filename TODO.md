@@ -7,6 +7,7 @@
 - [x] Add docstrings in stub.py
 - [x] Support ppx_import
 - [ ] Support exporting constants
+- [ ] Global module docstring
 - [x] Support optional and keyword-only arguments
 - [ ] Compile `unit -> int` function to `() -> int` in Python
 - [x] Add utilities to build a pyobject and export it manually

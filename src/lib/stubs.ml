@@ -42,14 +42,16 @@ module Default_encoding (P : Params) : Encoding = struct
         [ Declare_type { name; vars; def = Tagged_union cases } ]
 
   let compile_value_declaration { name; signature; _ } =
+    let internals =
+      Create_module.internal_module ~generated:P.generated_module
+    in
     match signature with
-    | Repr.Constant _ -> assert false
+    | Repr.Constant t ->
+        let const_def = Lvalue (Field (Var internals, name)) in
+        [ Declare_typed_constant { name; const_type = t; const_def } ]
     | Repr.Function { args; ret } ->
         let docstring = Register.registered_python_docstring name in
         let call_args = List.map (fun (a, _, _) -> Lvalue (Var a)) args in
-        let internals =
-          Create_module.internal_module ~generated:P.generated_module
-        in
         let body = [ Return (Call (Field (Var internals, name), call_args)) ] in
         [ Declare_typed_fun { name; args; ret; docstring; body } ]
 end
@@ -190,14 +192,16 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
   let ret_var = "_ret"
 
   let compile_value_declaration { name; signature; _ } =
+    let internals =
+      Create_module.internal_module ~generated:P.generated_module
+    in
     match signature with
-    | Repr.Constant _ -> assert false
+    | Repr.Constant t ->
+        let const_def = of_ocaml (Field (Var internals, name)) t in
+        [ Declare_typed_constant { name; const_type = t; const_def } ]
     | Repr.Function { args; ret } ->
         let docstring = Register.registered_python_docstring name in
         let call_args = List.map (fun (a, _, t) -> ocaml_of (Var a) t) args in
-        let internals =
-          Create_module.internal_module ~generated:P.generated_module
-        in
         let body =
           [
             Assign (ret_var, Call (Field (Var internals, name), call_args));

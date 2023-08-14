@@ -45,6 +45,9 @@ def eval(valuation: list[tuple[str, int]], expr: Expr) -> int | None:
     return _ocaml_module_internals.eval(valuation, expr)
 
 
+example_expr: Expr = _ocaml_module_internals.example_expr
+
+
 def fact(n: int) -> int:
     return _ocaml_module_internals.fact(n)
 

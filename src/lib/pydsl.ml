@@ -14,6 +14,7 @@ type lvalue =
 and shape_annot = Same_shape of lvalue
 
 and expr =
+  | Ellipsis_expr
   | None_constant
   | String_constant of string
   | Lvalue of lvalue
@@ -76,6 +77,11 @@ and item =
       ret : type_expr;
       body : block;
     }
+  | Declare_typed_constant of {
+      name : string;
+      const_type : type_expr;
+      const_def : expr;
+    }
   | Declare_fun of { name : string; args : string list; body : block }
 
 and stub = item list [@@deriving eq, visitors { variety = "map" }]
@@ -129,6 +135,7 @@ let rec show_if_chain = function
   | (c, e) :: cases -> fmt "%s if %s else %s" e c (show_if_chain cases)
 
 let rec show_expr = function
+  | Ellipsis_expr -> "..."
   | None_constant -> "None"
   | String_constant s -> add_quotes s
   | Lvalue v -> show_lvalue v
@@ -228,6 +235,12 @@ let show_item_lines = function
   | Declare_fun { name; args; body } ->
       fmt "def %s(%s):" name (concat ", " args)
       :: List.map indent (show_block body)
+  | Declare_typed_constant { name; const_type; const_def } ->
+      [
+        fmt "%s: %s = %s" name
+          (show_type ~quote:false const_type)
+          (show_expr const_def);
+      ]
   | Declare_typed_fun { name; docstring; args; ret; body } ->
       let docstring =
         match docstring with
@@ -325,7 +338,7 @@ let generate_imports stub =
         add ("typing", "TypeAlias");
         add_vars vars;
         process_alias_def def
-    | Declare_fun _ | Declare_typed_fun _ -> ()
+    | Declare_fun _ | Declare_typed_fun _ | Declare_typed_constant _ -> ()
   in
   List.iter process_item stub;
   let import_stmts =
@@ -355,7 +368,11 @@ let interface_only stub =
       | Declare_typed_fun { name; args; docstring; ret; body = _ } ->
           Some
             (Declare_typed_fun
-               { name; args; docstring; ret; body = [ Ellipsis ] }))
+               { name; args; docstring; ret; body = [ Ellipsis ] })
+      | Declare_typed_constant { name; const_type; const_def = _ } ->
+          Some
+            (Declare_typed_constant
+               { name; const_type; const_def = Ellipsis_expr }))
     stub
 
 let simplify_expr = function

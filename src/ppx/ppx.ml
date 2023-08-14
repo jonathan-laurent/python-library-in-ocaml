@@ -91,6 +91,8 @@ let python_type_export ~loc declaration =
           [%e Repr_ast.type_declaration_ast ~loc declaration]];
   ]
 
+let lident ~loc s = Loc.make ~loc (Longident.Lident s)
+
 let make_python_function ~loc ~args ~ret ~name =
   (* Py.Callable.of_function ~name:... ~docstring:...
      (fun args ->
@@ -98,7 +100,6 @@ let make_python_function ~loc ~args ~ret ~name =
        ... in
        [%python_of: ...] (f arg0...)) *)
   let n = List.length args in
-  let lident s = Loc.make ~loc (Longident.Lident s) in
   assert (n > 0);
   let body =
     let label name kind =
@@ -117,9 +118,10 @@ let make_python_function ~loc ~args ~ret ~name =
         [%python_of: [%t ret]]
           [%e
             pexp_apply ~loc
-              (pexp_ident ~loc (lident name))
+              (pexp_ident ~loc (lident ~loc name))
               (List.map args ~f:(fun (arg_name, arg_kind, _) ->
-                   (label arg_name arg_kind, pexp_ident ~loc (lident arg_name))))]]
+                   ( label arg_name arg_kind,
+                     pexp_ident ~loc (lident ~loc arg_name) )))]]
     in
     pexp_let ~loc Nonrecursive bindings expr
   in
@@ -129,6 +131,14 @@ let make_python_function ~loc ~args ~ret ~name =
         if Array.length args <> [%e eint ~loc n] then
           failwith "incorrect number of arguments";
         [%e body])]
+
+let make_python_constant ~loc ~ret ~name =
+  [%expr [%python_of: [%t ret]] [%e pexp_ident ~loc (lident ~loc name)]]
+
+let make_python_object ~loc ~args ~ret ~name =
+  match args with
+  | [] -> make_python_constant ~loc ~ret ~name
+  | _ -> make_python_function ~loc ~args ~ret ~name
 
 let value_binding_no_warn ~loc ~pat ~expr =
   {
@@ -144,36 +154,33 @@ let value_binding_no_warn ~loc ~pat ~expr =
 
 let python_export ~loc ~rec_flag ~name ~args ~ret ~signature ~expr =
   let signature = Renaming.rename_value_signature signature in
-  match args with
-  | [] -> Location.raise_errorf ~loc "Constant exportation not implemented"
-  | _ ->
-      let pyobject = make_python_function ~loc ~args ~ret ~name in
-      let name_pat = ppat_var ~loc (Loc.make ~loc name) in
-      let name_longident = Loc.make ~loc (Longident.Lident name) in
-      (* let myfun =
-         let rec myfun x y = ... in
-         let () = Python_libgen.(register_python_value {
-           convert=...; name=...; doc=...; signature=...}) in
-         myfun *)
-      pstr_value ~loc Nonrecursive
-        [
-          value_binding_no_warn ~loc ~pat:name_pat
-            ~expr:
-              (pexp_let ~loc rec_flag
-                 [ value_binding ~loc ~pat:name_pat ~expr ]
-                 [%expr
-                   let () =
-                     Python_libgen.(
-                       register_python_value
-                         {
-                           convert = (fun () -> [%e pyobject]);
-                           name = [%e estring ~loc name];
-                           signature =
-                             [%e Repr_ast.value_signature_ast ~loc signature];
-                         })
-                   in
-                   [%e pexp_ident ~loc name_longident]]);
-        ]
+  let pyobject = make_python_object ~loc ~args ~ret ~name in
+  let name_pat = ppat_var ~loc (Loc.make ~loc name) in
+  let name_longident = Loc.make ~loc (Longident.Lident name) in
+  (* let myfun =
+     let rec myfun x y = ... in
+     let () = Python_libgen.(register_python_value {
+       convert=...; name=...; doc=...; signature=...}) in
+     myfun *)
+  pstr_value ~loc Nonrecursive
+    [
+      value_binding_no_warn ~loc ~pat:name_pat
+        ~expr:
+          (pexp_let ~loc rec_flag
+             [ value_binding ~loc ~pat:name_pat ~expr ]
+             [%expr
+               let () =
+                 Python_libgen.(
+                   register_python_value
+                     {
+                       convert = (fun () -> [%e pyobject]);
+                       name = [%e estring ~loc name];
+                       signature =
+                         [%e Repr_ast.value_signature_ast ~loc signature];
+                     })
+               in
+               [%e pexp_ident ~loc name_longident]]);
+    ]
 
 let () =
   Repr_rewriter.register_type_declaration_deriver ~name:"python_export_type"

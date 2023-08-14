@@ -20,6 +20,9 @@ let%python_export rec eval (valuation : (string * int) list) (expr : expr) :
   | Add (e, e') ->
       Option.map2 (eval valuation e) (eval valuation e') ~f:( + )
 
+let%python_export example_expr =
+  (Add (Constant 1, Add (Var "x", Var "y")) : expr)
+
 let%python_export rec fact (n : int) : int =
   if n <= 0 then 1 else n * fact (n - 1)
 

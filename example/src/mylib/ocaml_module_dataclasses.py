@@ -122,6 +122,9 @@ def eval(valuation: list[tuple[str, int]], expr: Expr) -> int | None:
     return _ocaml_module_internals.eval(valuation, _ocaml_of_Expr(expr))
 
 
+example_expr: Expr = _Expr_of_ocaml(_ocaml_module_internals.example_expr)
+
+
 def fact(n: int) -> int:
     return _ocaml_module_internals.fact(n)
 
