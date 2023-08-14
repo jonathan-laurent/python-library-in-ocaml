@@ -71,8 +71,9 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
                 ( Var (conv_name u),
                   Lvalue lval :: List.map (fun t -> Lambda (aux Arg t)) ts ))
       | Tuple ts ->
-          Create_tuple_with_same_arity
-            (lval, List.mapi (fun i t -> aux (Index (lval, i)) t) ts)
+          Create_tuple
+            ( List.mapi (fun i t -> aux (Index (lval, i)) t) ts,
+              Some (Same_shape lval) )
       | List t | Array t -> Comprehension (Lvalue lval, aux Arg t)
       | Option t -> Case_not_none (Lvalue lval, aux lval t)
     in
@@ -113,18 +114,17 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
     let init (f, t) = (f, of_ocaml (Str_index (x, f)) t) in
     Create_dataclass (name, List.map init fields)
 
-  let ocaml_of_variant x ctor = function
-    | Repr.Anonymous [] -> Create_tuple [ String_constant ctor; None_constant ]
+  let ocaml_of_variant x ctor =
+    let tuple x = Create_tuple (x, None) in
+    function
+    | Repr.Anonymous [] -> tuple [ String_constant ctor; None_constant ]
     | Repr.Anonymous [ t ] ->
-        Create_tuple
-          [
-            String_constant ctor; Create_tuple [ ocaml_of (Field (x, "arg")) t ];
-          ]
+        tuple [ String_constant ctor; tuple [ ocaml_of (Field (x, "arg")) t ] ]
     | Repr.Anonymous args ->
         let ith i t = ocaml_of (Field (x, ith_arg i)) t in
-        Create_tuple [ String_constant ctor; Create_tuple (List.mapi ith args) ]
+        tuple [ String_constant ctor; tuple (List.mapi ith args) ]
     | Repr.Labeled fields ->
-        Create_tuple [ String_constant ctor; ocaml_of_dataclass x fields ]
+        tuple [ String_constant ctor; ocaml_of_dataclass x fields ]
 
   let variant_of_ocaml name x = function
     | Repr.Anonymous [] -> Create_dataclass (name, [])
