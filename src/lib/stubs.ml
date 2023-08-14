@@ -108,11 +108,11 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
 
   let ocaml_of_dataclass x fields =
     let init (f, t) = (f, ocaml_of (Field (x, f)) t) in
-    Create_dict (List.map init fields)
+    Create_dict (List.map init fields, Some (Same_shape x))
 
   let dataclass_of_ocaml name x fields =
     let init (f, t) = (f, of_ocaml (Str_index (x, f)) t) in
-    Create_dataclass (name, List.map init fields)
+    Create_dataclass (name, List.map init fields, Some (Same_shape x))
 
   let ocaml_of_variant x ctor =
     let tuple x = Create_tuple (x, None) in
@@ -127,16 +127,19 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
         tuple [ String_constant ctor; ocaml_of_dataclass x fields ]
 
   let variant_of_ocaml name x = function
-    | Repr.Anonymous [] -> Create_dataclass (name, [])
+    | Repr.Anonymous [] -> Create_dataclass (name, [], Some (Same_shape x))
     | Repr.Anonymous [ t ] ->
         Create_dataclass
-          (name, [ ("arg", of_ocaml (Index (Index (x, 1), 0)) t) ])
+          ( name,
+            [ ("arg", of_ocaml (Index (Index (x, 1), 0)) t) ],
+            Some (Same_shape x) )
     | Repr.Anonymous args ->
         Create_dataclass
           ( name,
             List.mapi
               (fun i t -> (ith_arg i, of_ocaml (Index (Index (x, 1), i)) t))
-              args )
+              args,
+            Some (Same_shape x) )
     | Repr.Labeled fields -> dataclass_of_ocaml name (Index (x, 1)) fields
 
   let compile_type_declaration

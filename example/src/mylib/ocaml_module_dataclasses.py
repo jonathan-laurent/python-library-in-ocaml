@@ -107,11 +107,11 @@ class CustommerData:
 
 
 def _ocaml_of_CustommerData(x):
-    return {"age": x.age, "gender": x.gender}
+    return (x).__dict__
 
 
 def _CustommerData_of_ocaml(x):
-    return CustommerData(age=x["age"], gender=x["gender"])
+    return CustommerData(**(x))
 
 
 def eval(valuation: list[tuple[str, int]], expr: Expr) -> int | None:
