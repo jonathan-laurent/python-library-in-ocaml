@@ -145,7 +145,7 @@ let%expect_test "python stub without dataclasses" =
 
     SumType: TypeAlias = Union[tuple[Literal["C"], tuple[bool, str]], tuple[Literal["D"], tuple[EnumType]], tuple[Literal["E"], tuple[int, bool]]]
 
-    TypeWithLists: TypeAlias = Union[tuple[Literal["L"], tuple[list[int | None]]]]
+    TypeWithLists: TypeAlias = tuple[Literal["L"], tuple[list[int | None]]]
 
     class RecordType(TypedDict, total=True):
         x: int
@@ -266,7 +266,7 @@ let%expect_test "python stub with dataclasses" =
     class L:
         arg: list[int | None]
 
-    TypeWithLists: TypeAlias = Union[L]
+    TypeWithLists: TypeAlias = L
 
     def _ocaml_of_TypeWithLists(x):
         return ("L", ([_x if _x is not None else None for _x in x.arg],)) if isinstance(x, L) else NotImplemented

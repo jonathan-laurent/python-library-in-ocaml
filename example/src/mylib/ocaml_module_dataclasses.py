@@ -133,3 +133,8 @@ def fact(n: int) -> int:
 def custommer_data(name: str) -> Result[CustommerData]:
     _ret = _ocaml_module_internals.custommer_data(name)
     return _Result_of_ocaml(_ret, (lambda _x: _CustommerData_of_ocaml(_x)))
+
+
+def log(x: float, *, base: float | None = None) -> float:
+    _ret = _ocaml_module_internals.log(x, base if base is not None else None)
+    return _ret

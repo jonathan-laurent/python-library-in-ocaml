@@ -33,4 +33,7 @@ let%python_export custommer_data (name : string) : custommer_data result =
   if String.(name = "Homer Simpson") then Answer {age= 39; gender= "male"}
   else Error "Not a custommer."
 
+let%python_export log (x : float) ?(base : float = 10.0) : float =
+  Float.(log x / log base)
+
 let () = Python_libgen.Driver.run ~generated:"ocaml_module"

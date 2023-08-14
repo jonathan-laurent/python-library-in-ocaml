@@ -51,3 +51,7 @@ def fact(n: int) -> int:
 
 def custommer_data(name: str) -> Result[CustommerData]:
     return _ocaml_module_internals.custommer_data(name)
+
+
+def log(x: float, *, base: float | None = None) -> float:
+    return _ocaml_module_internals.log(x, base)

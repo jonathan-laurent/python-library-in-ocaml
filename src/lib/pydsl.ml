@@ -47,6 +47,8 @@ and type_expr = Repr.type_expr =
   | Array of type_expr
   | Option of type_expr
 
+and arg_kind = Repr.arg_kind = Positional | Keyword | Optional
+
 and alias_def =
   | Simple of type_expr
   | Union of type_expr list
@@ -67,7 +69,7 @@ and item =
   | Declare_type of { name : string; vars : string list; def : alias_def }
   | Declare_typed_fun of {
       name : string;
-      args : (string * type_expr) list;
+      args : (string * arg_kind * type_expr) list;
       docstring : string option;
       ret : type_expr;
       body : block;
@@ -229,12 +231,25 @@ let show_item_lines = function
         | None -> []
         | Some doc -> [ indent_docstring ("\"\"\"\n" ^ doc ^ "\n\"\"\"") ]
       in
+      let kwd_args_processed = ref false in
+      let show_arg (s, k, t) =
+        let t = show_type ~quote:false t in
+        let maybe_sep () =
+          if !kwd_args_processed then ""
+          else (
+            kwd_args_processed := true;
+            "*, ")
+        in
+        let base = fmt "%s: %s" s t in
+        match k with
+        | Positional -> base
+        | Keyword -> maybe_sep () ^ base
+        | Optional -> maybe_sep () ^ base ^ " = None"
+      in
+
       [
         fmt "def %s(%s) -> %s:" name
-          (concat ", "
-          @@ List.map
-               (fun (s, t) -> fmt "%s: %s" s (show_type ~quote:false t))
-               args)
+          (concat ", " @@ List.map show_arg args)
           (show_type ~quote:false ret);
       ]
       @ docstring

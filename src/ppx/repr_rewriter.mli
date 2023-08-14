@@ -10,7 +10,7 @@ val register_value_declaration_expander :
   (loc:Location.t ->
   rec_flag:Asttypes.rec_flag ->
   name:string ->
-  args:(string * Parsetree.core_type) list ->
+  args:(string * Python_libgen.Repr.arg_kind * Parsetree.core_type) list ->
   ret:Parsetree.core_type ->
   signature:Python_libgen.Repr.value_signature ->
   expr:Parsetree.expression ->

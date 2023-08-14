@@ -60,10 +60,18 @@ let type_declaration_ast ~loc { type_name; type_vars; definition } =
         definition = [%e type_definition_ast ~loc definition];
       }]
 
+let arg_kind ~loc = function
+  | Positional -> [%expr Python_libgen.Repr.Positional]
+  | Keyword -> [%expr Python_libgen.Repr.Keyword]
+  | Optional -> [%expr Python_libgen.Repr.Optional]
+
 let value_signature_ast ~loc = function
   | Constant t -> [%expr Python_libgen.Repr.Constant [%e type_expr_ast ~loc t]]
   | Function { args; ret } ->
-      let arg (s, t) = [%expr [%e estring ~loc s], [%e type_expr_ast ~loc t]] in
+      let arg (s, a, t) =
+        [%expr
+          [%e estring ~loc s], [%e arg_kind ~loc a], [%e type_expr_ast ~loc t]]
+      in
       [%expr
         Python_libgen.Repr.Function
           {

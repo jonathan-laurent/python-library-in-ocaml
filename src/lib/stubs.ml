@@ -46,7 +46,7 @@ module Default_encoding (P : Params) : Encoding = struct
     | Repr.Constant _ -> assert false
     | Repr.Function { args; ret } ->
         let docstring = Register.registered_python_docstring name in
-        let call_args = List.map (fun (a, _) -> Lvalue (Var a)) args in
+        let call_args = List.map (fun (a, _, _) -> Lvalue (Var a)) args in
         let internals =
           Create_module.internal_module ~generated:P.generated_module
         in
@@ -190,7 +190,7 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
     | Repr.Constant _ -> assert false
     | Repr.Function { args; ret } ->
         let docstring = Register.registered_python_docstring name in
-        let call_args = List.map (fun (a, t) -> ocaml_of (Var a) t) args in
+        let call_args = List.map (fun (a, _, t) -> ocaml_of (Var a) t) args in
         let internals =
           Create_module.internal_module ~generated:P.generated_module
         in

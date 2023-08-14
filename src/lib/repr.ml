@@ -31,9 +31,14 @@ type type_declaration = {
 }
 [@@deriving sexp]
 
+type arg_kind = Positional | Keyword | Optional [@@deriving sexp]
+
 type value_signature =
   | Constant of type_expr
-  | Function of { args : (string * type_expr) list; ret : type_expr }
+  | Function of { args : (string * arg_kind * type_expr) list; ret : type_expr }
+(* Invariant: positional arguments must come first, then named
+   arguments and finally optional arguments. *)
+(* Invariant: optional arguments must have an option type *)
 [@@deriving sexp]
 
 type 'a value = {

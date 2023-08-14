@@ -54,7 +54,8 @@ module Renaming = struct
     | Function { args; ret } ->
         Function
           {
-            args = List.map ~f:(fun (s, t) -> (s, rename_type_expr t)) args;
+            args =
+              List.map ~f:(fun (s, k, t) -> (s, k, rename_type_expr t)) args;
             ret = rename_type_expr ret;
           }
 
@@ -100,8 +101,14 @@ let make_python_function ~loc ~args ~ret ~name =
   let lident s = Loc.make ~loc (Longident.Lident s) in
   assert (n > 0);
   let body =
+    let label name kind =
+      match kind with
+      | Repr.Positional -> Nolabel
+      | Repr.Keyword -> Labelled name
+      | Repr.Optional -> Optional name
+    in
     let bindings =
-      List.mapi args ~f:(fun i (arg_name, arg_type) ->
+      List.mapi args ~f:(fun i (arg_name, _arg_kind, arg_type) ->
           value_binding ~loc
             ~pat:(ppat_var ~loc (Loc.make ~loc arg_name))
             ~expr:[%expr [%of_python: [%t arg_type]] args.([%e eint ~loc i])])
@@ -111,8 +118,8 @@ let make_python_function ~loc ~args ~ret ~name =
           [%e
             pexp_apply ~loc
               (pexp_ident ~loc (lident name))
-              (List.map args ~f:(fun (arg_name, _) ->
-                   (Nolabel, pexp_ident ~loc (lident arg_name))))]]
+              (List.map args ~f:(fun (arg_name, arg_kind, _) ->
+                   (label arg_name arg_kind, pexp_ident ~loc (lident arg_name))))]]
     in
     pexp_let ~loc Nonrecursive bindings expr
   in
@@ -131,7 +138,7 @@ let value_binding_no_warn ~loc ~pat ~expr =
     pvb_attributes =
       [
         attribute ~loc ~name:(Loc.make ~loc "warning")
-          ~payload:(PStr [%str "-32"]);
+          ~payload:(PStr [%str "-32-16"]);
       ];
   }
 

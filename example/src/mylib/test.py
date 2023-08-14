@@ -10,6 +10,9 @@ def test_normal():
     print(mod.custommer_data("Homer Simpson"))
     print(mod.custommer_data("Flanders"))
 
+    print(mod.log(10))
+    print(mod.log(2, base=2))
+
 
 def test_dataclasses():
     import mylib.ocaml_module_dataclasses as mod

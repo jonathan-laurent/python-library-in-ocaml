@@ -79,11 +79,24 @@ module Type_declaration = struct
 end
 
 module Value_declaration_expander = struct
-  let rec extract_fun_type { pexp_desc; _ } =
+  let arg_kind_order = function
+    | Repr.Positional -> 0
+    | Repr.Keyword -> 1
+    | Repr.Optional -> 2
+
+  let funargs_sorted a =
+    let a = List.map (fun (_, k, _) -> arg_kind_order k) a in
+    Base.List.is_sorted ~compare:Int.compare a
+
+  let make_option ~loc t =
+    let open Ast_builder.Default in
+    ptyp_constr ~loc (Loc.make ~loc (Longident.Lident "option")) [ t ]
+
+  let rec extract_fun_type { pexp_desc; pexp_loc = loc; _ } =
     let ( let* ) = Option.bind in
     match pexp_desc with
     | Pexp_fun
-        ( _,
+        ( arg_label,
           _,
           {
             ppat_desc =
@@ -92,14 +105,39 @@ module Value_declaration_expander = struct
           },
           expr ) ->
         let* args, ret = extract_fun_type expr in
-        Some ((arg_name.txt, arg_type) :: args, ret)
+        let check_same_names l1 l2 =
+          if not (String.equal l1 l2) then
+            Location.raise_errorf ~loc:arg_name.loc
+              "named and optional arguments must have the name of their label"
+        in
+        let arg_kind =
+          match arg_label with
+          | Nolabel -> Repr.Positional
+          | Labelled lname ->
+              check_same_names lname arg_name.txt;
+              Repr.Keyword
+          | Optional lname ->
+              check_same_names lname arg_name.txt;
+              Repr.Optional
+        in
+        let arg_type =
+          match arg_kind with
+          | Optional -> make_option ~loc arg_type
+          | _ -> arg_type
+        in
+        Some ((arg_name.txt, arg_kind, arg_type) :: args, ret)
     | Pexp_constraint (_, ret_type) -> Some ([], ret_type)
     | _ -> None
 
   let expand ~loc expr =
     match extract_fun_type expr with
     | None -> Location.raise_errorf ~loc "invalid function definition format"
-    | Some (args, ret) -> (args, ret)
+    | Some (args, ret) ->
+        if not (funargs_sorted args) then
+          Location.raise_errorf ~loc
+            "arguments must be provided in this order: positional, keyword, \
+             and optional";
+        (args, ret)
 
   let pattern =
     Ast_pattern.(
@@ -113,7 +151,7 @@ module Value_declaration_expander = struct
     | args ->
         Repr.Function
           {
-            args = List.map (fun (s, t) -> (s, type_expr t)) args;
+            args = List.map (fun (s, a, t) -> (s, a, type_expr t)) args;
             ret = type_expr ret;
           }
 
