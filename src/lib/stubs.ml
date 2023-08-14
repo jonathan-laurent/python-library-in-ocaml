@@ -71,7 +71,8 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
                 ( Var (conv_name u),
                   Lvalue lval :: List.map (fun t -> Lambda (aux Arg t)) ts ))
       | Tuple ts ->
-          Create_tuple (List.mapi (fun i t -> aux (Index (lval, i)) t) ts)
+          Create_tuple_with_same_arity
+            (lval, List.mapi (fun i t -> aux (Index (lval, i)) t) ts)
       | List t | Array t -> Comprehension (Lvalue lval, aux Arg t)
       | Option t -> Case_not_none (Lvalue lval, aux lval t)
     in
@@ -226,7 +227,10 @@ let generate_py_stub ~interface_only ~settings ~lib_name ~generated ~types
     List.concat_map E.compile_type_declaration types
     @ List.concat_map E.compile_value_declaration values
   in
-  let stub = if interface_only then Pydsl.interface_only stub else stub in
+  let stub =
+    if interface_only then Pydsl.interface_only stub
+    else Pydsl.optimize_stub stub
+  in
   String.concat "\n\n"
     ([ prelude ]
     @ Pydsl.generate_imports stub

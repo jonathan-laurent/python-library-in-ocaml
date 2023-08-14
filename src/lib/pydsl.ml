@@ -17,6 +17,7 @@ and expr =
   | Lvalue of lvalue
   | Call of lvalue * expr list
   | Create_tuple of expr list
+  | Create_tuple_with_same_arity of lvalue * expr list
   | Lambda of expr (* lambda _x: #1 *)
   | Case_not_none of expr * expr (* #2 if #1 is not None else None *)
   | Comprehension of expr * expr (* [#2 for _x in #1] *)
@@ -76,7 +77,7 @@ and item =
     }
   | Declare_fun of { name : string; args : string list; body : block }
 
-and stub = item list [@@deriving visitors { variety = "map" }]
+and stub = item list [@@deriving eq, visitors { variety = "map" }]
 
 let fmt = Printf.sprintf
 let concat sep = Base.String.concat ~sep
@@ -133,9 +134,11 @@ let rec show_expr = function
   | Call (f, args) ->
       fmt "%s(%s)" (show_lvalue f) (concat ", " (List.map show_expr args))
   | Lambda body -> fmt "(lambda %s: %s)" arg_var (show_expr body)
-  | Create_tuple [] -> "()"
-  | Create_tuple [ arg ] -> fmt "(%s,)" (show_expr arg)
-  | Create_tuple args -> fmt "(%s)" (concat ", " (List.map show_expr args))
+  | Create_tuple [] | Create_tuple_with_same_arity (_, []) -> "()"
+  | Create_tuple [ arg ] | Create_tuple_with_same_arity (_, [ arg ]) ->
+      fmt "(%s,)" (show_expr arg)
+  | Create_tuple args | Create_tuple_with_same_arity (_, args) ->
+      fmt "(%s)" (concat ", " (List.map show_expr args))
   | Case_not_none (e1, e2) ->
       fmt "%s if %s is not None else None" (show_expr e2) (show_expr e1)
   | Comprehension (l, e) ->
@@ -344,13 +347,40 @@ let generate_imports stub =
   import_stmts @ type_vars_defs
 
 let interface_only stub =
-  stub
-  |> List.filter_map (function
-       | ( Declare_enum _ | Declare_dataclass _ | Declare_typed_dict _
-         | Declare_type _ ) as it ->
-           Some it
-       | Declare_fun _ -> None
-       | Declare_typed_fun { name; args; docstring; ret; body = _ } ->
-           Some
-             (Declare_typed_fun
-                { name; args; docstring; ret; body = [ Ellipsis ] }))
+  List.filter_map
+    (function
+      | ( Declare_enum _ | Declare_dataclass _ | Declare_typed_dict _
+        | Declare_type _ ) as it ->
+          Some it
+      | Declare_fun _ -> None
+      | Declare_typed_fun { name; args; docstring; ret; body = _ } ->
+          Some
+            (Declare_typed_fun
+               { name; args; docstring; ret; body = [ Ellipsis ] }))
+    stub
+
+let simplify_expr = function
+  | Create_tuple_with_same_arity (v, args)
+    when Base.List.for_alli args ~f:(fun i a ->
+             equal_expr a (Lvalue (Index (v, i)))) ->
+      Lvalue v
+  | Lambda (Call (f, [ Lvalue Arg ])) -> Lvalue f
+  | Case_not_none (cond, e) when equal_expr cond e -> e
+  | Comprehension (l, Lvalue Arg) -> l
+  | e -> e
+
+let rec simplify_block = function
+  | [ Assign (s, e); Return (Lvalue (Var s')) ] when String.equal s s' ->
+      [ Return e ]
+  | [] -> []
+  | i :: is -> i :: simplify_block is
+
+let optimize_stub stub =
+  let visitor =
+    object
+      inherit [_] map as super
+      method! visit_block () s = simplify_block (super#visit_block () s)
+      method! visit_expr () e = simplify_expr (super#visit_expr () e)
+    end
+  in
+  visitor#visit_stub () stub
