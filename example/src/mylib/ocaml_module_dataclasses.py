@@ -107,11 +107,11 @@ class CustommerData:
 
 
 def _ocaml_of_CustommerData(x):
-    return (x).__dict__
+    return x.__dict__
 
 
 def _CustommerData_of_ocaml(x):
-    return CustommerData(**(x))
+    return CustommerData(**x)
 
 
 def eval(valuation: list[tuple[str, int]], expr: Expr) -> int | None:

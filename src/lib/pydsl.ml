@@ -22,8 +22,8 @@ and expr =
   | Lambda of expr (* lambda _x: #1 *)
   | Case_not_none of expr * expr (* #2 if #1 is not None else None *)
   | Comprehension of expr * expr (* [#2 for _x in #1] *)
-  | Dataclass_of_dict of string * expr
-  | Dict_of_dataclass of expr
+  | Dataclass_of_dict of string * lvalue
+  | Dict_of_dataclass of lvalue
   | Create_dataclass of string * (string * expr) list * shape_annot option
   | Create_dict of (string * expr) list * shape_annot option
   | Enum_value of lvalue
@@ -142,8 +142,8 @@ let rec show_expr = function
       fmt "%s if %s is not None else None" (show_expr e2) (show_expr e1)
   | Comprehension (l, e) ->
       fmt "[%s for %s in %s]" (show_expr e) arg_var (show_expr l)
-  | Dataclass_of_dict (d, e) -> fmt "%s(**(%s))" d (show_expr e)
-  | Dict_of_dataclass e -> fmt "(%s).__dict__" (show_expr e)
+  | Dataclass_of_dict (d, e) -> fmt "%s(**%s)" d (show_lvalue e)
+  | Dict_of_dataclass e -> fmt "%s.__dict__" (show_lvalue e)
   | Create_dataclass (d, [], _) -> fmt "%s()" d
   | Create_dataclass (d, args, _) ->
       fmt "%s(%s)" d
@@ -369,11 +369,11 @@ let simplify_expr = function
   | Create_dataclass (d, args, Some (Same_shape v))
     when Base.List.for_all args ~f:(fun (s, e) ->
              equal_expr e (Lvalue (Str_index (v, s)))) ->
-      Dataclass_of_dict (d, Lvalue v)
+      Dataclass_of_dict (d, v)
   | Create_dict (args, Some (Same_shape v))
     when Base.List.for_all args ~f:(fun (s, e) ->
              equal_expr e (Lvalue (Field (v, s)))) ->
-      Dict_of_dataclass (Lvalue v)
+      Dict_of_dataclass v
   | e -> e
 
 let rec simplify_block = function
