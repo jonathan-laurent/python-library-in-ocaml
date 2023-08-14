@@ -8,7 +8,13 @@ let interpret_command ~generated ~use_dataclasses ~lib_name =
   | "generate-py" ->
       let settings = Stubs.{ use_dataclasses } in
       print_string
-        (Stubs.generate_py_stub ~settings ~generated ~lib_name ~types ~values)
+        (Stubs.generate_py_stub ~interface_only:false ~settings ~generated
+           ~lib_name ~types ~values)
+  | "generate-pyi" ->
+      let settings = Stubs.{ use_dataclasses } in
+      print_string
+        (Stubs.generate_py_stub ~interface_only:true ~settings ~generated
+           ~lib_name ~types ~values)
   | _ -> print_endline "Invalid command."
 
 let run ~generated =

@@ -203,9 +203,11 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
         [ Declare_typed_fun { name; args; ret; docstring; body } ]
 end
 
-let generate_py_stub ~settings ~lib_name ~generated ~types ~values =
+let generate_py_stub ~interface_only ~settings ~lib_name ~generated ~types
+    ~values =
   let prelude =
-    Stdio.In_channel.read_all (lookup_template "stub.py")
+    let template = if interface_only then "stub.pyi" else "stub.py" in
+    Stdio.In_channel.read_all (lookup_template template)
     |> Base.String.substr_replace_all ~pattern:"{LIB_NAME}" ~with_:lib_name
     |> Base.String.substr_replace_all ~pattern:"{GENERATED}" ~with_:generated
     |> Base.String.substr_replace_all ~pattern:"{GENERATED_BY_PYML}"
@@ -224,6 +226,7 @@ let generate_py_stub ~settings ~lib_name ~generated ~types ~values =
     List.concat_map E.compile_type_declaration types
     @ List.concat_map E.compile_value_declaration values
   in
+  let stub = if interface_only then Pydsl.interface_only stub else stub in
   String.concat "\n\n"
     ([ prelude ]
     @ Pydsl.generate_imports stub

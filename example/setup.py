@@ -25,21 +25,22 @@ def build_library(generated_module: str, use_dataclasses: bool):
     os.makedirs(bin_path, exist_ok=True)
     shutil.copy(join(dune_build, dll), bin_path)
     os.chmod(join(bin_path, dll), 0o666)
-    # Generate the Python stub
-    generator = join(dune_build, f"ocaml_module.exe")
-    cmd = [generator, f"generate-py", "--lib-name", lib_name]
-    if use_dataclasses:
-        cmd.append("--use-dataclasses")
-    proc = subprocess.run(cmd, text=True, stdout=subprocess.PIPE)
-    if proc.returncode != 0:
-        print(proc.stdout)
-        print("Error generating Python stubs.")
-    file = join("src", lib_name, f"{generated_module}.py")
-    with open(file, "w") as f:
-        f.write(proc.stdout)
-    # Format the stubs with black
-    if shutil.which("black") is not None:
-        subprocess.run(["black", file])
+    # Generate the Python stubs
+    for ext in ["py", "pyi"]:
+        generator = join(dune_build, f"ocaml_module.exe")
+        cmd = [generator, f"generate-{ext}", "--lib-name", lib_name]
+        if use_dataclasses:
+            cmd.append("--use-dataclasses")
+        proc = subprocess.run(cmd, text=True, stdout=subprocess.PIPE)
+        if proc.returncode != 0:
+            print(proc.stdout)
+            print("Error generating Python stubs.")
+        file = join("src", lib_name, f"{generated_module}.{ext}")
+        with open(file, "w") as f:
+            f.write(proc.stdout)
+        # Format the stubs with black
+        if shutil.which("black") is not None:
+            subprocess.run(["black", file])
 
 
 

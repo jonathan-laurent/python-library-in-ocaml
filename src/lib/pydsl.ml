@@ -28,7 +28,7 @@ and expr =
   | Str_cases of lvalue * (string * expr) list
   | Type_cases of lvalue * (string * expr) list
 
-and instr = Assign of string * expr | Return of expr
+and instr = Assign of string * expr | Return of expr | Ellipsis
 and block = instr list
 
 and atomic_type = Repr.atomic_type =
@@ -170,6 +170,7 @@ let rec show_expr = function
 let show_instr = function
   | Assign (s, e) -> [ fmt "%s = %s" s (show_expr e) ]
   | Return e -> [ fmt "return %s" (show_expr e) ]
+  | Ellipsis -> [ "..." ]
 
 let show_block b = List.concat_map show_instr b
 
@@ -341,3 +342,15 @@ let generate_imports stub =
     |> List.map (fun v -> Printf.sprintf "%s = TypeVar(\"%s\")" v v)
   in
   import_stmts @ type_vars_defs
+
+let interface_only stub =
+  stub
+  |> List.filter_map (function
+       | ( Declare_enum _ | Declare_dataclass _ | Declare_typed_dict _
+         | Declare_type _ ) as it ->
+           Some it
+       | Declare_fun _ -> None
+       | Declare_typed_fun { name; args; docstring; ret; body = _ } ->
+           Some
+             (Declare_typed_fun
+                { name; args; docstring; ret; body = [ Ellipsis ] }))

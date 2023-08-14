@@ -2,4 +2,4 @@
  (section
   (site
    (python-libgen templates)))
- (files stub.py))
+ (files stub.py stub.pyi))

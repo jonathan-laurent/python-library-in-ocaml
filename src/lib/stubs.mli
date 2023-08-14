@@ -1,6 +1,7 @@
 type settings = { use_dataclasses : bool }
 
 val generate_py_stub :
+  interface_only:bool ->
   settings:settings ->
   lib_name:string ->
   generated:string ->
