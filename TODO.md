@@ -6,7 +6,7 @@
 - [x] Do not export opaque type declarations
 - [x] Add docstrings in stub.py
 - [x] Support ppx_import
-- [ ] Support exporting constants
+- [x] Support exporting constants
 - [ ] Global module docstring
 - [x] Support optional and keyword-only arguments
 - [ ] Compile `unit -> int` function to `() -> int` in Python
