@@ -131,7 +131,7 @@ module Value_declaration_expander = struct
 
   let expand ~loc expr =
     match extract_fun_type expr with
-    | None -> Location.raise_errorf ~loc "invalid function definition format"
+    | None -> Location.raise_errorf ~loc "invalid export definition format"
     | Some (args, ret) ->
         if not (funargs_sorted args) then
           Location.raise_errorf ~loc
@@ -141,9 +141,7 @@ module Value_declaration_expander = struct
 
   let pattern =
     Ast_pattern.(
-      pstr
-        (pstr_value __ (value_binding ~pat:(ppat_var __) ~expr:__ ^:: nil)
-        ^:: nil))
+      pstr (pstr_value __ (value_binding ~pat:__ ~expr:__ ^:: nil) ^:: nil))
 
   let value_signature ~args ~ret =
     match args with
@@ -157,9 +155,18 @@ module Value_declaration_expander = struct
 
   let extension ~name f =
     Extension.V3.declare name Extension.Context.structure_item pattern
-      (fun ~ctxt rec_flag name expr ->
+      (fun ~ctxt rec_flag pat expr ->
         let loc = Expansion_context.Extension.extension_point_loc ctxt in
-        let args, ret = expand ~loc expr in
+        let name, (args, ret) =
+          match pat.ppat_desc with
+          (* Function definitions use ppat_var and constant definitions
+             ppat_constraint *)
+          | Ppat_var s | Ppat_constraint ({ ppat_desc = Ppat_var s; _ }, _) ->
+              (s.txt, expand ~loc expr)
+          | _ ->
+              Location.raise_errorf ~loc
+                "unsupported pattern in exported definition"
+        in
         let signature = value_signature ~args ~ret in
         f ~loc ~rec_flag ~name ~args ~ret ~signature ~expr)
 end
