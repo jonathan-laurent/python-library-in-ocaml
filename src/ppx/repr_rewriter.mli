@@ -1,3 +1,6 @@
+(** Utilities derive type and value representations and write ppx rewriters that
+    leverage them. *)
+
 val register_type_declaration_deriver :
   name:string ->
   (loc:Location.t ->
