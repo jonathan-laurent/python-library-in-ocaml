@@ -235,10 +235,10 @@ let%expect_test "python stub with dataclasses" =
     SimpleAlias: TypeAlias = tuple[int, tuple[str, float]]
 
     def _ocaml_of_SimpleAlias(x):
-        return (x[0], (x[1][0], x[1][1]))
+        return x
 
     def _SimpleAlias_of_ocaml(x):
-        return (x[0], (x[1][0], x[1][1]))
+        return x
 
     @dataclass
     class C:
@@ -257,10 +257,10 @@ let%expect_test "python stub with dataclasses" =
     SumType: TypeAlias = Union[C, D, E]
 
     def _ocaml_of_SumType(x):
-        return ("C", (x.arg1, x.arg2)) if isinstance(x, C) else ("D", (_ocaml_of_EnumType(x.arg),)) if isinstance(x, D) else ("E", {"x": x.x, "y": x.y}) if isinstance(x, E) else NotImplemented
+        return ("C", (x.arg1, x.arg2)) if isinstance(x, C) else ("D", (_ocaml_of_EnumType(x.arg),)) if isinstance(x, D) else ("E", x.__dict__) if isinstance(x, E) else NotImplemented
 
     def _SumType_of_ocaml(x):
-        return C(arg1=x[1][0], arg2=x[1][1]) if x[0] == "C" else D(arg=_EnumType_of_ocaml(x[1][0])) if x[0] == "D" else E(x=x[1]["x"], y=x[1]["y"]) if x[0] == "E" else NotImplemented
+        return C(arg1=x[1][0], arg2=x[1][1]) if x[0] == "C" else D(arg=_EnumType_of_ocaml(x[1][0])) if x[0] == "D" else E(**x[1]) if x[0] == "E" else NotImplemented
 
     @dataclass
     class L:
@@ -269,10 +269,10 @@ let%expect_test "python stub with dataclasses" =
     TypeWithLists: TypeAlias = L
 
     def _ocaml_of_TypeWithLists(x):
-        return ("L", ([_x if _x is not None else None for _x in x.arg],)) if isinstance(x, L) else NotImplemented
+        return ("L", (x.arg,)) if isinstance(x, L) else NotImplemented
 
     def _TypeWithLists_of_ocaml(x):
-        return L(arg=[_x if _x is not None else None for _x in x[1][0]]) if x[0] == "L" else NotImplemented
+        return L(arg=x[1][0]) if x[0] == "L" else NotImplemented
 
     @dataclass
     class RecordType:
@@ -280,10 +280,10 @@ let%expect_test "python stub with dataclasses" =
         y: float | None
 
     def _ocaml_of_RecordType(x):
-        return {"x": x.x, "y": x.y if x.y is not None else None}
+        return x.__dict__
 
     def _RecordType_of_ocaml(x):
-        return RecordType(x=x["x"], y=x["y"] if x["y"] is not None else None)
+        return RecordType(**x)
 
     @dataclass
     class RecordTypeAlias:
@@ -291,10 +291,10 @@ let%expect_test "python stub with dataclasses" =
         y: float | None
 
     def _ocaml_of_RecordTypeAlias(x):
-        return {"x": x.x, "y": x.y if x.y is not None else None}
+        return x.__dict__
 
     def _RecordTypeAlias_of_ocaml(x):
-        return RecordTypeAlias(x=x["x"], y=x["y"] if x["y"] is not None else None)
+        return RecordTypeAlias(**x)
 
     @dataclass
     class Polymorphic(Generic[A, B]):
@@ -310,10 +310,10 @@ let%expect_test "python stub with dataclasses" =
     Loc: TypeAlias = tuple[int, int, int, int]
 
     def _ocaml_of_Loc(x):
-        return (x[0], x[1], x[2], x[3])
+        return x
 
     def _Loc_of_ocaml(x):
-        return (x[0], x[1], x[2], x[3])
+        return x
 
     @dataclass
     class WithLoc(Generic[A]):
@@ -335,16 +335,14 @@ let%expect_test "python stub with dataclasses" =
         return _WithLoc_of_ocaml(x, (lambda _x: _x))
 
     def f(x: int) -> int:
-        _ret = _core_internals.f(x)
-        return _ret
+        return _core_internals.f(x)
 
     def fact(n: int) -> int:
         """
         Compute the factorial of an integer number.
         Return 1 on negative inputs.
         """
-        _ret = _core_internals.fact(n)
-        return _ret
+        return _core_internals.fact(n)
 
     def two_poly(a: int, b: str) -> tuple[Polymorphic[int, str], Polymorphic[str, int]]:
         _ret = _core_internals.two_poly(a, b)
@@ -355,8 +353,7 @@ let%expect_test "python stub with dataclasses" =
         return [_Polymorphic_of_ocaml(_x, (lambda _x: _x), (lambda _x: _x)) for _x in _ret]
 
     def sum(l: list[int]) -> int:
-        _ret = _core_internals.sum([_x for _x in l])
-        return _ret
+        return _core_internals.sum(l)
 
     def make_record(x: int) -> RecordType:
         _ret = _core_internals.make_record(x)

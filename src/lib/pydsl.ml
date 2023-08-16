@@ -21,6 +21,7 @@ and expr =
   | Call of lvalue * expr list
   | Create_tuple of expr list * shape_annot option
   | Lambda of expr (* lambda _x: #1 *)
+  | Lambda_multi of string list * expr
   | Case_not_none of expr * expr (* #2 if #1 is not None else None *)
   | Comprehension of expr * expr (* [#2 for _x in #1] *)
   | Dataclass_of_dict of string * lvalue
@@ -30,6 +31,7 @@ and expr =
   | Enum_value of lvalue
   | Str_cases of lvalue * (string * expr) list
   | Type_cases of lvalue * (string * expr) list
+  | Let_in of string * expr * expr
 
 and instr = Assign of string * expr | Return of expr | Ellipsis
 and block = instr list
@@ -49,6 +51,7 @@ and type_expr = Repr.type_expr =
   | List of type_expr
   | Array of type_expr
   | Option of type_expr
+  | Callable of type_expr list * type_expr
 
 and arg_kind = Repr.arg_kind = Positional | Keyword | Optional
 
@@ -84,7 +87,8 @@ and item =
     }
   | Declare_fun of { name : string; args : string list; body : block }
 
-and stub = item list [@@deriving eq, visitors { variety = "map" }]
+and stub = item list
+[@@deriving eq, visitors { variety = "map" }, visitors { variety = "iter" }]
 
 let fmt = Printf.sprintf
 let concat sep = Base.String.concat ~sep
@@ -122,6 +126,10 @@ let rec show_type ~quote t =
   | Tuple ts -> "tuple[" ^ concat ", " (List.map (show_type ~quote) ts) ^ "]"
   | List t | Array t -> "list[" ^ show_type ~quote t ^ "]"
   | Option t -> show_type ~quote t ^ " | None"
+  | Callable (args, ret) ->
+      fmt "Callable[[%s], %s]"
+        (concat ", " (List.map (show_type ~quote) args))
+        (show_type ~quote ret)
 
 let rec show_lvalue = function
   | Arg -> arg_var
@@ -142,6 +150,8 @@ let rec show_expr = function
   | Call (f, args) ->
       fmt "%s(%s)" (show_lvalue f) (concat ", " (List.map show_expr args))
   | Lambda body -> fmt "(lambda %s: %s)" arg_var (show_expr body)
+  | Lambda_multi ([], e) -> fmt "(lambda: %s)" (show_expr e)
+  | Lambda_multi (vs, e) -> fmt "(lambda %s: %s)" (concat ", " vs) (show_expr e)
   | Create_tuple ([], _) -> "()"
   | Create_tuple ([ arg ], _) -> fmt "(%s,)" (show_expr arg)
   | Create_tuple (args, _) -> fmt "(%s)" (concat ", " (List.map show_expr args))
@@ -175,6 +185,8 @@ let rec show_expr = function
            (fun (s, e) ->
              (fmt "isinstance(%s, %s)" (show_lvalue arg) s, show_expr e))
            cases)
+  | Let_in (s, e1, e2) ->
+      fmt "(lambda %s: %s)(%s)" s (show_expr e2) (show_expr e1)
 
 let show_instr = function
   | Assign (s, e) -> [ fmt "%s = %s" s (show_expr e) ]
@@ -340,7 +352,20 @@ let generate_imports stub =
         process_alias_def def
     | Declare_fun _ | Declare_typed_fun _ | Declare_typed_constant _ -> ()
   in
-  List.iter process_item stub;
+  let visitor =
+    object
+      inherit [_] iter as super
+
+      method! visit_item () x =
+        process_item x;
+        super#visit_item () x
+
+      method! visit_Callable () args ret =
+        add ("typing", "Callable");
+        super#visit_Callable () args ret
+    end
+  in
+  visitor#visit_stub () stub;
   let import_stmts =
     imports |> Queue.to_list
     |> Base.List.dedup_and_sort ~compare:[%ord: string * string]
@@ -381,6 +406,9 @@ let simplify_expr = function
              equal_expr a (Lvalue (Index (v, i)))) ->
       Lvalue v
   | Lambda (Call (f, [ Lvalue Arg ])) -> Lvalue f
+  | Lambda_multi (vs, Call (f, es))
+    when [%eq: expr list] es (List.map (fun v -> Lvalue (Var v)) vs) ->
+      Lvalue f
   | Case_not_none (cond, e) when equal_expr cond e -> e
   | Comprehension (l, Lvalue Arg) -> l
   | Create_dataclass (d, args, Some (Same_shape v))
@@ -391,6 +419,9 @@ let simplify_expr = function
     when Base.List.for_all args ~f:(fun (s, e) ->
              equal_expr e (Lvalue (Field (v, s)))) ->
       Dict_of_dataclass v
+  (* let s = s in e  ==  let s = e in s  == e *)
+  | Let_in (s, e1, e2) when equal_expr e1 (Lvalue (Var s)) -> e2
+  | Let_in (s, e1, e2) when equal_expr e2 (Lvalue (Var s)) -> e1
   | e -> e
 
 let rec simplify_block = function

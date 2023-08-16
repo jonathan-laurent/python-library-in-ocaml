@@ -24,6 +24,8 @@ module Renaming = struct
     | List t -> List (rename_type_expr t)
     | Array t -> Array (rename_type_expr t)
     | Option t -> Option (rename_type_expr t)
+    | Callable (args, res) ->
+        Callable (List.map ~f:rename_type_expr args, rename_type_expr res)
 
   let rename_variant_args = function
     | Anonymous ts -> Anonymous (List.map ~f:rename_type_expr ts)

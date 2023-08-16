@@ -60,31 +60,41 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
   open Repr
   open Pydsl
 
-  let conv_generic conv_name =
-    let open Pydsl in
-    let rec aux lval t =
-      match t with
-      | Repr.Tvar v -> Call (Var (conv_name v), [ Lvalue lval ])
-      | App (ctor, ts) -> (
-          match ctor with
-          | Int | Bool | Float | String | Unit -> Lvalue lval
-          | Custom u ->
-              Call
-                ( Var (conv_name u),
-                  Lvalue lval :: List.map (fun t -> Lambda (aux Arg t)) ts ))
-      | Tuple ts ->
-          Create_tuple
-            ( List.mapi (fun i t -> aux (Index (lval, i)) t) ts,
-              Some (Same_shape lval) )
-      | List t | Array t -> Comprehension (Lvalue lval, aux Arg t)
-      | Option t -> Case_not_none (Lvalue lval, aux lval t)
+  let rec conv_generic ~conv_name ~conv_rev_name lval t =
+    let conv = conv_generic ~conv_name ~conv_rev_name in
+    let conv_rev =
+      conv_generic ~conv_name:conv_rev_name ~conv_rev_name:conv_name
     in
-    aux
+    match t with
+    | Repr.Tvar v -> Call (Var (conv_name v), [ Lvalue lval ])
+    | App (ctor, ts) -> (
+        match ctor with
+        | Int | Bool | Float | String | Unit -> Lvalue lval
+        | Custom u ->
+            Call
+              ( Var (conv_name u),
+                Lvalue lval :: List.map (fun t -> Lambda (conv Arg t)) ts ))
+    | Tuple ts ->
+        Create_tuple
+          ( List.mapi (fun i t -> conv (Index (lval, i)) t) ts,
+            Some (Same_shape lval) )
+    | List t | Array t -> Comprehension (Lvalue lval, conv Arg t)
+    | Option t -> Case_not_none (Lvalue lval, conv lval t)
+    | Callable (args, res) ->
+        let args =
+          List.mapi (fun i t -> ("_x" ^ string_of_int (i + 1), t)) args
+        in
+        Lambda_multi
+          ( List.map fst args,
+            Let_in
+              ( arg_var,
+                Call (lval, List.map (fun (v, t) -> conv_rev (Var v) t) args),
+                conv (Var arg_var) res ) )
 
   let t_of_ocaml t = "_" ^ t ^ "_of_ocaml"
   let ocaml_of_t t = "_" ^ "ocaml_of_" ^ t
-  let of_ocaml = conv_generic t_of_ocaml
-  let ocaml_of = conv_generic ocaml_of_t
+  let of_ocaml = conv_generic ~conv_name:t_of_ocaml ~conv_rev_name:ocaml_of_t
+  let ocaml_of = conv_generic ~conv_name:ocaml_of_t ~conv_rev_name:t_of_ocaml
   let ith_arg i = "arg" ^ string_of_int (i + 1)
 
   let dataclass_encoding args =

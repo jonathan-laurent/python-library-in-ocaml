@@ -10,6 +10,7 @@ type type_expr =
   | List of type_expr
   | Array of type_expr
   | Option of type_expr
+  | Callable of type_expr list * type_expr
 [@@deriving sexp]
 
 type variant_args =
