@@ -22,6 +22,10 @@ let%python_export rec eval (valuation : (string * int) list) (expr : expr) :
 
 let%python_export example_expr : expr = Add (Constant 1, Add (Var "x", Var "y"))
 
+(* let%python_export rec rename_expr (renaming : string -> string) (expr : expr) :
+     expr =
+   assert false *)
+
 let%python_export rec fact (n : int) : int =
   if n <= 0 then 1 else n * fact (n - 1)
 

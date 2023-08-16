@@ -6,7 +6,7 @@ let ignore_longident_prefix ~loc = function
   | Longident.Lapply _ ->
       Location.raise_errorf ~loc "Longident.Lapply is not allowed"
 
-let rec type_expr { ptyp_desc; ptyp_loc = loc; _ } =
+let rec type_expr ({ ptyp_desc; ptyp_loc = loc; _ } as t) =
   match ptyp_desc with
   | Ptyp_var v -> Repr.Tvar v
   | Ptyp_tuple args -> Repr.Tuple (List.map type_expr args)
@@ -23,7 +23,20 @@ let rec type_expr { ptyp_desc; ptyp_loc = loc; _ } =
       | "list", [ arg ] -> Repr.List (type_expr arg)
       | "array", [ arg ] -> Repr.Array (type_expr arg)
       | ctor, args -> Repr.(App (Custom ctor, List.map type_expr args)))
+  | Ptyp_arrow _ ->
+      let args, ret = arrow_type_expr t in
+      Repr.Callable (args, ret)
   | _ -> Location.raise_errorf ~loc "unsupported type"
+
+and arrow_type_expr t =
+  match t.ptyp_desc with
+  | Ptyp_arrow (Nolabel, arg, ret) ->
+      let arg = type_expr arg in
+      let args, ret = arrow_type_expr ret in
+      (arg :: args, ret)
+  | Ptyp_arrow (_, _, _) ->
+      Location.raise_errorf ~loc:t.ptyp_loc "unsupported type"
+  | _ -> ([], type_expr t)
 
 module Type_declaration = struct
   let constructor_declaration ~loc { pcd_name; pcd_vars; pcd_args; _ } =
