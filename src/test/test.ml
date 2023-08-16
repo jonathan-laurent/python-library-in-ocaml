@@ -146,8 +146,8 @@ let test ~use_dataclasses =
   let types = registered_python_types () in
   let settings = Stubs.{ use_dataclasses } in
   print_endline
-    (Stubs.generate_py_stub ~interface_only:false ~settings ~generated:"core"
-       ~lib_name:"mylib" ~values ~types)
+    (Stubs.generate_py_stub ~interface_only:false ~settings
+       ~generated_module:"core" ~lib_name:"mylib" ~values ~types)
 
 let%expect_test "python stub without dataclasses" =
   test ~use_dataclasses:false;

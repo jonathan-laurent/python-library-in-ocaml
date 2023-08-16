@@ -43,7 +43,7 @@ module Default_encoding (P : Params) : Encoding = struct
 
   let compile_value_declaration { name; signature; _ } =
     let internals =
-      Create_module.internal_module ~generated:P.generated_module
+      Create_module.internal_module ~generated_module:P.generated_module
     in
     match signature with
     | Repr.Constant t ->
@@ -212,7 +212,7 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
 
   let compile_value_declaration { name; signature; _ } =
     let internals =
-      Create_module.internal_module ~generated:P.generated_module
+      Create_module.internal_module ~generated_module:P.generated_module
     in
     match signature with
     | Repr.Constant t ->
@@ -230,20 +230,21 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
         [ Declare_typed_fun { name; args; ret; docstring; body } ]
 end
 
-let generate_py_stub ~interface_only ~settings ~lib_name ~generated ~types
-    ~values =
+let generate_py_stub ~interface_only ~settings ~lib_name ~generated_module
+    ~types ~values =
   let prelude =
     let template = if interface_only then "stub.pyi" else "stub.py" in
     Stdio.In_channel.read_all (lookup_template template)
     |> Base.String.substr_replace_all ~pattern:"{LIB_NAME}" ~with_:lib_name
-    |> Base.String.substr_replace_all ~pattern:"{GENERATED}" ~with_:generated
+    |> Base.String.substr_replace_all ~pattern:"{GENERATED}"
+         ~with_:generated_module
     |> Base.String.substr_replace_all ~pattern:"{GENERATED_BY_PYML}"
-         ~with_:(Create_module.internal_module ~generated)
+         ~with_:(Create_module.internal_module ~generated_module)
   in
   let (module E : Encoding) =
     let (module Params : Params) =
       (module struct
-        let generated_module = generated
+        let generated_module = generated_module
       end)
     in
     if settings.use_dataclasses then (module Dataclasses_encoding (Params))

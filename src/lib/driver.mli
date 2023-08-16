@@ -1,3 +1,3 @@
 (** Generate a library executable. *)
 
-val run : generated:string -> unit
+val run : generated_module:string -> unit
