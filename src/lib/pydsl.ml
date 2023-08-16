@@ -16,8 +16,7 @@ and expr =
   | Lvalue of lvalue
   | Call of lvalue * expr list
   | Create_tuple of expr list * shape_annot option
-  | Lambda of string * expr
-  | Lambda_multi of string list * expr
+  | Lambda of string list * expr
   | Case_not_none of { tested : expr; expr : expr }
       (** <expr> if <tested> is not None else None *)
   | Comprehension of { var : string; list : expr; expr : expr }
@@ -146,9 +145,8 @@ let rec show_expr = function
   | Lvalue v -> show_lvalue v
   | Call (f, args) ->
       fmt "%s(%s)" (show_lvalue f) (concat ", " (List.map show_expr args))
-  | Lambda (v, body) -> fmt "(lambda %s: %s)" v (show_expr body)
-  | Lambda_multi ([], e) -> fmt "(lambda: %s)" (show_expr e)
-  | Lambda_multi (vs, e) -> fmt "(lambda %s: %s)" (concat ", " vs) (show_expr e)
+  | Lambda ([], e) -> fmt "(lambda: %s)" (show_expr e)
+  | Lambda (vs, e) -> fmt "(lambda %s: %s)" (concat ", " vs) (show_expr e)
   | Create_tuple ([], _) -> "()"
   | Create_tuple ([ arg ], _) -> fmt "(%s,)" (show_expr arg)
   | Create_tuple (args, _) -> fmt "(%s)" (concat ", " (List.map show_expr args))
@@ -402,8 +400,7 @@ let simplify_expr = function
     when Base.List.for_alli args ~f:(fun i a ->
              equal_expr a (Lvalue (Index (v, i)))) ->
       Lvalue v
-  | Lambda (s, Call (f, [ Lvalue (Var s') ])) when String.equal s s' -> Lvalue f
-  | Lambda_multi (vs, Call (f, es))
+  | Lambda (vs, Call (f, es))
     when [%eq: expr list] es (List.map (fun v -> Lvalue (Var v)) vs) ->
       Lvalue f
   | Case_not_none { tested; expr } when equal_expr tested expr -> expr

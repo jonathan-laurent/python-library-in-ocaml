@@ -74,8 +74,9 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
             Call
               ( Var (conv_name u),
                 Lvalue lval
-                :: List.map (fun t -> Lambda (arg_var, conv (Var arg_var) t)) ts
-              ))
+                :: List.map
+                     (fun t -> Lambda ([ arg_var ], conv (Var arg_var) t))
+                     ts ))
     | Tuple ts ->
         Create_tuple
           ( List.mapi (fun i t -> conv (Index (lval, i)) t) ts,
@@ -88,7 +89,7 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
         let args =
           List.mapi (fun i t -> ("_x" ^ string_of_int (i + 1), t)) args
         in
-        Lambda_multi
+        Lambda
           ( List.map fst args,
             Let_in
               {
