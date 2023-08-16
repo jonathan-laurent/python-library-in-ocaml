@@ -6,5 +6,5 @@ val generate_py_stub :
   lib_name:string ->
   generated:string ->
   types:Repr.type_declaration list ->
-  values:Py.Object.t Repr.value list ->
+  values:Repr.value list ->
   string

@@ -4,9 +4,7 @@ open Repr
 let __registered_python_names : unit Hashtbl.M(String).t =
   Hashtbl.create (module String)
 
-let __registered_python_values : Py.Object.t Repr.value Queue.t =
-  Queue.create ()
-
+let __registered_python_values : Repr.value Queue.t = Queue.create ()
 let __registered_python_types : Repr.type_declaration Queue.t = Queue.create ()
 
 let __registered_python_docstrings : string Hashtbl.M(String).t =

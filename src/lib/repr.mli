@@ -39,8 +39,8 @@ type value_signature =
   | Constant of type_expr
   | Function of { args : (string * arg_kind * type_expr) list; ret : type_expr }
 
-type 'a value = {
-  convert : unit -> 'a;
+type value = {
+  convert : unit -> Py.Object.t;
   name : string;
   signature : value_signature;
 }
@@ -48,4 +48,4 @@ type 'a value = {
 (** {1 Printing utilities for debugging} *)
 
 val show_type_declaration : type_declaration -> string
-val show_value : (Format.formatter -> 'a -> unit) -> 'a value -> string
+val show_value : value -> string

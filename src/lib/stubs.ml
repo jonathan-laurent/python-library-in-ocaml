@@ -12,15 +12,15 @@ let lookup_template filename =
 
 module type Encoding = sig
   val compile_type_declaration : Repr.type_declaration -> Pydsl.item list
-  val compile_value_declaration : 'a Repr.value -> Pydsl.item list
+  val compile_value_declaration : Repr.value -> Pydsl.item list
 end
 
 module type Params = sig
   val generated_module : string
 end
 
-(* The default encoding simply follows the ppx_python conventions. It is
-   simple and fast but not very idiomatic in Python. *)
+(* The default encoding simply follows the ppx_python conventions. It is simple
+   and fast but not very idiomatic in Python. *)
 module Default_encoding (P : Params) : Encoding = struct
   open Repr
   open Pydsl

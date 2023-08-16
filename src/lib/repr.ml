@@ -44,8 +44,8 @@ type value_signature =
 (* Invariant: optional arguments must have an option type *)
 [@@deriving show]
 
-type 'a value = {
-  convert : unit -> 'a; [@sexp.opaque]
+type value = {
+  convert : unit -> Py.Object.t; [@sexp.opaque]
   name : string;
   signature : value_signature;
 }
