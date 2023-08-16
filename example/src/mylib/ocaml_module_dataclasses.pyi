@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from typing import Generic, TypeAlias, TypeVar, Union
+from typing import Callable, Generic, TypeAlias, TypeVar, Union
 
 A = TypeVar("A")
 
@@ -45,6 +45,7 @@ def eval(valuation: list[tuple[str, int]], expr: Expr) -> int | None:
 
 example_expr: Expr = ...
 
+def rename_expr(renaming: Callable[[str], str], expr: Expr) -> Expr: ...
 def fact(n: int) -> int: ...
 def custommer_data(name: str) -> Result[CustommerData]: ...
 def log(x: float, *, base: float | None = None) -> float: ...

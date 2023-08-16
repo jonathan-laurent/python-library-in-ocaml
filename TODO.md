@@ -12,4 +12,5 @@
 - [ ] Compile `unit -> int` function to `() -> int` in Python
 - [x] Add utilities to build a pyobject and export it manually
 - [o] Concise variant encoding in `ppx_python`
-- [ ] Functional callbacks and arrow types
+- [x] Functional callbacks and arrow types
+- [ ] Implement to_python for arrow types

@@ -95,6 +95,52 @@ let python_type_export ~loc declaration =
 
 let lident ~loc s = Loc.make ~loc (Longident.Lident s)
 
+let rec extract_funtype t =
+  let loc = t.ptyp_loc in
+  match t.ptyp_desc with
+  | Ptyp_arrow (Nolabel, t1, t2) ->
+      let args, ret = extract_funtype t2 in
+      (t1 :: args, ret)
+  | Ptyp_arrow _ ->
+      Location.raise_errorf ~loc
+        "labelled arguments not supported in arrow types"
+  | _ -> ([], t)
+
+let rec of_python t expr =
+  let loc = t.ptyp_loc in
+  match t.ptyp_desc with
+  | Ptyp_arrow _ ->
+      let args, ret = extract_funtype t in
+      let var x = pexp_ident ~loc (lident ~loc x) in
+      let ith_arg i = "arg" ^ Int.to_string (i + 1) in
+      let rec aux i =
+        if i >= List.length args then
+          of_python ret
+            (pexp_apply ~loc (var "_f")
+               [
+                 ( Nolabel,
+                   pexp_array ~loc
+                     (List.mapi args ~f:(fun i a ->
+                          python_of a (var (ith_arg i)))) );
+               ])
+        else
+          [%expr
+            fun [%p ppat_var ~loc (Loc.make ~loc (ith_arg i))] ->
+              [%e aux (i + 1)]]
+      in
+      [%expr
+        let _f = Py.Callable.to_function [%e expr] in
+        (* fun x y -> of_python (_f [| to_python x; to_python y |]) *)
+        [%e aux 0]]
+  | _ -> [%expr [%of_python: [%t t]] [%e expr]]
+
+and python_of t expr =
+  let loc = t.ptyp_loc in
+  match t.ptyp_desc with
+  | Ptyp_arrow _ ->
+      Location.raise_errorf ~loc "to_python <fun> not supported yet"
+  | _ -> [%expr [%python_of: [%t t]] [%e expr]]
+
 let make_python_function ~loc ~args ~ret ~name =
   (* Py.Callable.of_function ~name:... ~docstring:...
      (fun args ->
@@ -114,7 +160,7 @@ let make_python_function ~loc ~args ~ret ~name =
       List.mapi args ~f:(fun i (arg_name, _arg_kind, arg_type) ->
           value_binding ~loc
             ~pat:(ppat_var ~loc (Loc.make ~loc arg_name))
-            ~expr:[%expr [%of_python: [%t arg_type]] args.([%e eint ~loc i])])
+            ~expr:(of_python arg_type [%expr args.([%e eint ~loc i])]))
     and expr =
       [%expr
         [%python_of: [%t ret]]

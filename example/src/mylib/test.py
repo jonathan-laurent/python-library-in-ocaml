@@ -6,6 +6,7 @@ def test_normal():
     valuation = [("x", 5), ("y", 3)]
     expr = ("Add", (("Var", ("x",)), ("Var", ("y",))))
     print(mod.eval(valuation, expr))
+    print(mod.rename_expr(lambda s: "_" + s, expr))
     print(mod.example_expr)
 
     print(mod.custommer_data("Homer Simpson"))

@@ -17,7 +17,7 @@ dll.caml_startup(argv)
 import _ocaml_module_internals  # type: ignore
 
 
-from typing import Literal, TypeAlias, TypeVar, TypedDict, Union
+from typing import Callable, Literal, TypeAlias, TypeVar, TypedDict, Union
 
 A = TypeVar("A")
 
@@ -46,6 +46,10 @@ def eval(valuation: list[tuple[str, int]], expr: Expr) -> int | None:
 
 
 example_expr: Expr = _ocaml_module_internals.example_expr
+
+
+def rename_expr(renaming: Callable[[str], str], expr: Expr) -> Expr:
+    return _ocaml_module_internals.rename_expr(renaming, expr)
 
 
 def fact(n: int) -> int:

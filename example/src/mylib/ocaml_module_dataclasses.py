@@ -19,7 +19,7 @@ import _ocaml_module_internals  # type: ignore
 
 from dataclasses import dataclass
 
-from typing import Generic, TypeAlias, TypeVar, Union
+from typing import Callable, Generic, TypeAlias, TypeVar, Union
 
 A = TypeVar("A")
 
@@ -123,6 +123,11 @@ def eval(valuation: list[tuple[str, int]], expr: Expr) -> int | None:
 
 
 example_expr: Expr = _Expr_of_ocaml(_ocaml_module_internals.example_expr)
+
+
+def rename_expr(renaming: Callable[[str], str], expr: Expr) -> Expr:
+    _ret = _ocaml_module_internals.rename_expr(renaming, _ocaml_of_Expr(expr))
+    return _Expr_of_ocaml(_ret)
 
 
 def fact(n: int) -> int:

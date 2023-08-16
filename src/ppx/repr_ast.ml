@@ -26,8 +26,8 @@ let rec type_expr_ast ~loc = function
   | Callable (args, ret) ->
       [%expr
         Python_libgen.Repr.Callable
-          ([%e elist ~loc (List.map (type_expr_ast ~loc) args)];
-           [%e type_expr_ast ~loc ret])]
+          ( [%e elist ~loc (List.map (type_expr_ast ~loc) args)],
+            [%e type_expr_ast ~loc ret] )]
 
 let variant_args_ast ~loc = function
   | Anonymous ts ->
