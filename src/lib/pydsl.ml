@@ -1,11 +1,7 @@
-(* The [Arg] expression binds the innermost variable that is introduced
-   by either [Lambda] or [Comprehension]. *)
-
-let arg_var = "_x"
+let arg_var = "_x" (* canonical argument name used for binders *)
 let quote_char = ':'
 
 type lvalue =
-  | Arg
   | Var of string
   | Field of lvalue * string
   | Str_index of lvalue * string
@@ -14,16 +10,18 @@ type lvalue =
 and shape_annot = Same_shape of lvalue
 
 and expr =
-  | Ellipsis_expr
+  | Ellipsis_expr  (** ... *)
   | None_constant
   | String_constant of string
   | Lvalue of lvalue
   | Call of lvalue * expr list
   | Create_tuple of expr list * shape_annot option
-  | Lambda of expr (* lambda _x: #1 *)
+  | Lambda of string * expr
   | Lambda_multi of string list * expr
-  | Case_not_none of expr * expr (* #2 if #1 is not None else None *)
-  | Comprehension of expr * expr (* [#2 for _x in #1] *)
+  | Case_not_none of { tested : expr; expr : expr }
+      (** <expr> if <tested> is not None else None *)
+  | Comprehension of { var : string; list : expr; expr : expr }
+      (** <expr> for <var> in <list> *)
   | Dataclass_of_dict of string * lvalue
   | Dict_of_dataclass of lvalue
   | Create_dataclass of string * (string * expr) list * shape_annot option
@@ -31,7 +29,7 @@ and expr =
   | Enum_value of lvalue
   | Str_cases of lvalue * (string * expr) list
   | Type_cases of lvalue * (string * expr) list
-  | Let_in of string * expr * expr
+  | Let_in of { var : string; assigned : expr; expr : expr }
 
 and instr = Assign of string * expr | Return of expr | Ellipsis
 and block = instr list
@@ -132,7 +130,6 @@ let rec show_type ~quote t =
         (show_type ~quote ret)
 
 let rec show_lvalue = function
-  | Arg -> arg_var
   | Var s -> s
   | Field (l, f) -> fmt "%s.%s" (show_lvalue l) f
   | Index (l, i) -> fmt "%s[%d]" (show_lvalue l) i
@@ -149,16 +146,16 @@ let rec show_expr = function
   | Lvalue v -> show_lvalue v
   | Call (f, args) ->
       fmt "%s(%s)" (show_lvalue f) (concat ", " (List.map show_expr args))
-  | Lambda body -> fmt "(lambda %s: %s)" arg_var (show_expr body)
+  | Lambda (v, body) -> fmt "(lambda %s: %s)" v (show_expr body)
   | Lambda_multi ([], e) -> fmt "(lambda: %s)" (show_expr e)
   | Lambda_multi (vs, e) -> fmt "(lambda %s: %s)" (concat ", " vs) (show_expr e)
   | Create_tuple ([], _) -> "()"
   | Create_tuple ([ arg ], _) -> fmt "(%s,)" (show_expr arg)
   | Create_tuple (args, _) -> fmt "(%s)" (concat ", " (List.map show_expr args))
-  | Case_not_none (e1, e2) ->
-      fmt "%s if %s is not None else None" (show_expr e2) (show_expr e1)
-  | Comprehension (l, e) ->
-      fmt "[%s for %s in %s]" (show_expr e) arg_var (show_expr l)
+  | Case_not_none { tested; expr } ->
+      fmt "%s if %s is not None else None" (show_expr expr) (show_expr tested)
+  | Comprehension { var; list; expr } ->
+      fmt "[%s for %s in %s]" (show_expr expr) var (show_expr list)
   | Dataclass_of_dict (d, e) -> fmt "%s(**%s)" d (show_lvalue e)
   | Dict_of_dataclass e -> fmt "%s.__dict__" (show_lvalue e)
   | Create_dataclass (d, [], _) -> fmt "%s()" d
@@ -185,8 +182,8 @@ let rec show_expr = function
            (fun (s, e) ->
              (fmt "isinstance(%s, %s)" (show_lvalue arg) s, show_expr e))
            cases)
-  | Let_in (s, e1, e2) ->
-      fmt "(lambda %s: %s)(%s)" s (show_expr e2) (show_expr e1)
+  | Let_in { var; assigned; expr } ->
+      fmt "(lambda %s: %s)(%s)" var (show_expr expr) (show_expr assigned)
 
 let show_instr = function
   | Assign (s, e) -> [ fmt "%s = %s" s (show_expr e) ]
@@ -405,12 +402,14 @@ let simplify_expr = function
     when Base.List.for_alli args ~f:(fun i a ->
              equal_expr a (Lvalue (Index (v, i)))) ->
       Lvalue v
-  | Lambda (Call (f, [ Lvalue Arg ])) -> Lvalue f
+  | Lambda (s, Call (f, [ Lvalue (Var s') ])) when String.equal s s' -> Lvalue f
   | Lambda_multi (vs, Call (f, es))
     when [%eq: expr list] es (List.map (fun v -> Lvalue (Var v)) vs) ->
       Lvalue f
-  | Case_not_none (cond, e) when equal_expr cond e -> e
-  | Comprehension (l, Lvalue Arg) -> l
+  | Case_not_none { tested; expr } when equal_expr tested expr -> expr
+  | Comprehension { list; var; expr = Lvalue (Var var') }
+    when String.equal var var' ->
+      list
   | Create_dataclass (d, args, Some (Same_shape v))
     when Base.List.for_all args ~f:(fun (s, e) ->
              equal_expr e (Lvalue (Str_index (v, s)))) ->
@@ -419,9 +418,11 @@ let simplify_expr = function
     when Base.List.for_all args ~f:(fun (s, e) ->
              equal_expr e (Lvalue (Field (v, s)))) ->
       Dict_of_dataclass v
-  (* let s = s in e  ==  let s = e in s  == e *)
-  | Let_in (s, e1, e2) when equal_expr e1 (Lvalue (Var s)) -> e2
-  | Let_in (s, e1, e2) when equal_expr e2 (Lvalue (Var s)) -> e1
+  | Let_in { var; assigned; expr } when equal_expr assigned (Lvalue (Var var))
+    ->
+      expr
+  | Let_in { var; assigned; expr } when equal_expr expr (Lvalue (Var var)) ->
+      assigned
   | e -> e
 
 let rec simplify_block = function

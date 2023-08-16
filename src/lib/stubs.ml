@@ -73,13 +73,17 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
         | Custom u ->
             Call
               ( Var (conv_name u),
-                Lvalue lval :: List.map (fun t -> Lambda (conv Arg t)) ts ))
+                Lvalue lval
+                :: List.map (fun t -> Lambda (arg_var, conv (Var arg_var) t)) ts
+              ))
     | Tuple ts ->
         Create_tuple
           ( List.mapi (fun i t -> conv (Index (lval, i)) t) ts,
             Some (Same_shape lval) )
-    | List t | Array t -> Comprehension (Lvalue lval, conv Arg t)
-    | Option t -> Case_not_none (Lvalue lval, conv lval t)
+    | List t | Array t ->
+        Comprehension
+          { var = arg_var; list = Lvalue lval; expr = conv (Var arg_var) t }
+    | Option t -> Case_not_none { tested = Lvalue lval; expr = conv lval t }
     | Callable (args, res) ->
         let args =
           List.mapi (fun i t -> ("_x" ^ string_of_int (i + 1), t)) args
@@ -87,9 +91,12 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
         Lambda_multi
           ( List.map fst args,
             Let_in
-              ( arg_var,
-                Call (lval, List.map (fun (v, t) -> conv_rev (Var v) t) args),
-                conv (Var arg_var) res ) )
+              {
+                var = arg_var;
+                assigned =
+                  Call (lval, List.map (fun (v, t) -> conv_rev (Var v) t) args);
+                expr = conv (Var arg_var) res;
+              } )
 
   let t_of_ocaml t = "_" ^ t ^ "_of_ocaml"
   let ocaml_of_t t = "_" ^ "ocaml_of_" ^ t
