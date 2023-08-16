@@ -64,43 +64,82 @@ let%test_unit "functions preserved" =
 let%expect_test "registered types" =
   let open Python_libgen.Repr in
   List.iter (registered_python_types ()) ~f:(fun v ->
-      printf !"%{sexp: type_declaration}\n\n" v);
+      printf !"%{show_type_declaration}\n\n" v);
   [%expect
     {|
-    ((type_name EnumType) (type_vars ()) (definition (Enum (A B))))
+    { Repr.type_name = "EnumType"; type_vars = [];
+      definition = (Repr.Enum ["A"; "B"]) }
 
-    ((type_name SimpleAlias) (type_vars ())
-     (definition
-      (Alias (Tuple ((App Int ()) (Tuple ((App String ()) (App Float ()))))))))
+    { Repr.type_name = "SimpleAlias"; type_vars = [];
+      definition =
+      (Repr.Alias
+         (Repr.Tuple
+            [(Repr.App (Repr.Int, []));
+              (Repr.Tuple
+                 [(Repr.App (Repr.String, [])); (Repr.App (Repr.Float, []))])
+              ]))
+      }
 
-    ((type_name SumType) (type_vars ())
-     (definition
-      (Variant
-       ((C (Anonymous ((App Bool ()) (App String ()))))
-        (D (Anonymous ((App (Custom EnumType) ()))))
-        (E (Labeled ((x (App Int ())) (y (App Bool ())))))))))
+    { Repr.type_name = "SumType"; type_vars = [];
+      definition =
+      (Repr.Variant
+         [("C",
+           (Repr.Anonymous
+              [(Repr.App (Repr.Bool, [])); (Repr.App (Repr.String, []))]));
+           ("D", (Repr.Anonymous [(Repr.App ((Repr.Custom "EnumType"), []))]));
+           ("E",
+            (Repr.Labeled
+               [("x", (Repr.App (Repr.Int, [])));
+                 ("y", (Repr.App (Repr.Bool, [])))]))
+           ])
+      }
 
-    ((type_name TypeWithLists) (type_vars ())
-     (definition (Variant ((L (Anonymous ((List (Option (App Int ()))))))))))
+    { Repr.type_name = "TypeWithLists"; type_vars = [];
+      definition =
+      (Repr.Variant
+         [("L",
+           (Repr.Anonymous [(Repr.List (Repr.Option (Repr.App (Repr.Int, []))))]))
+           ])
+      }
 
-    ((type_name RecordType) (type_vars ())
-     (definition (Record ((x (App Int ())) (y (Option (App Float ())))))))
+    { Repr.type_name = "RecordType"; type_vars = [];
+      definition =
+      (Repr.Record
+         [("x", (Repr.App (Repr.Int, [])));
+           ("y", (Repr.Option (Repr.App (Repr.Float, []))))])
+      }
 
-    ((type_name RecordTypeAlias) (type_vars ())
-     (definition (Record ((x (App Int ())) (y (Option (App Float ())))))))
+    { Repr.type_name = "RecordTypeAlias"; type_vars = [];
+      definition =
+      (Repr.Record
+         [("x", (Repr.App (Repr.Int, [])));
+           ("y", (Repr.Option (Repr.App (Repr.Float, []))))])
+      }
 
-    ((type_name Polymorphic) (type_vars (A B))
-     (definition (Record ((x (Tvar A)) (y (Tvar B))))))
+    { Repr.type_name = "Polymorphic"; type_vars = ["A"; "B"];
+      definition = (Repr.Record [("x", (Repr.Tvar "A")); ("y", (Repr.Tvar "B"))])
+      }
 
-    ((type_name Loc) (type_vars ())
-     (definition
-      (Alias (Tuple ((App Int ()) (App Int ()) (App Int ()) (App Int ()))))))
+    { Repr.type_name = "Loc"; type_vars = [];
+      definition =
+      (Repr.Alias
+         (Repr.Tuple
+            [(Repr.App (Repr.Int, [])); (Repr.App (Repr.Int, []));
+              (Repr.App (Repr.Int, [])); (Repr.App (Repr.Int, []))]))
+      }
 
-    ((type_name WithLoc) (type_vars (A))
-     (definition (Record ((data (Tvar A)) (loc (App (Custom Loc) ()))))))
+    { Repr.type_name = "WithLoc"; type_vars = ["A"];
+      definition =
+      (Repr.Record
+         [("data", (Repr.Tvar "A"));
+           ("loc", (Repr.App ((Repr.Custom "Loc"), [])))])
+      }
 
-    ((type_name LocatedName) (type_vars ())
-     (definition (Alias (App (Custom WithLoc) ((App String ())))))) |}]
+    { Repr.type_name = "LocatedName"; type_vars = [];
+      definition =
+      (Repr.Alias
+         (Repr.App ((Repr.Custom "WithLoc"), [(Repr.App (Repr.String, []))])))
+      } |}]
 
 let test ~use_dataclasses =
   let values = registered_python_values () in

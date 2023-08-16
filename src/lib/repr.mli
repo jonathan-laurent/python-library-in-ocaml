@@ -1,5 +1,8 @@
+(** A minimalistic runtime representation for OCaml types and values. *)
+
+(** {1 Type expressions} *)
+
 type atomic_type = Bool | Int | Float | String | Unit | Custom of string
-[@@deriving show]
 
 type type_expr =
   | Tvar of string
@@ -9,44 +12,40 @@ type type_expr =
   | Array of type_expr
   | Option of type_expr
   | Callable of type_expr list * type_expr
-[@@deriving show]
+
+(** {1 Type declarations} *)
 
 type variant_args =
   | Anonymous of type_expr list
   | Labeled of (string * type_expr) list
-[@@deriving show]
-
-(** {1 Type declarations} *)
 
 type type_definition =
   | Alias of type_expr
   | Record of (string * type_expr) list
   | Enum of string list
   | Variant of (string * variant_args) list
-[@@deriving show]
 
 type type_declaration = {
   type_name : string;
   type_vars : string list;
   definition : type_definition;
 }
-[@@deriving show]
 
-(** {1 Value declarations}*)
+(** {1 Value declarations} *)
 
-type arg_kind = Positional | Keyword | Optional [@@deriving show]
+type arg_kind = Positional | Keyword | Optional
 
 type value_signature =
   | Constant of type_expr
   | Function of { args : (string * arg_kind * type_expr) list; ret : type_expr }
-(* Invariant: positional arguments must come first, then named arguments and
-   finally optional arguments. *)
-(* Invariant: optional arguments must have an option type *)
-[@@deriving show]
 
 type 'a value = {
-  convert : unit -> 'a; [@sexp.opaque]
+  convert : unit -> 'a;
   name : string;
   signature : value_signature;
 }
-[@@deriving show]
+
+(** {1 Printing utilities for debugging} *)
+
+val show_type_declaration : type_declaration -> string
+val show_value : (Format.formatter -> 'a -> unit) -> 'a value -> string
