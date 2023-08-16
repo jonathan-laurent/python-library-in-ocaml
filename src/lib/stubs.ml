@@ -60,6 +60,9 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
   open Repr
   open Pydsl
 
+  let arg_var = "_x" (* canonical argument name used for binders *)
+  let ret_var = "_ret"
+
   let rec conv_generic ~conv_name ~conv_rev_name lval t =
     let conv = conv_generic ~conv_name ~conv_rev_name in
     let conv_rev =
@@ -207,8 +210,6 @@ module Dataclasses_encoding (P : Params) : Encoding = struct
         in
         children @ [ union ] @ conversions
 
-  let ret_var = "_ret"
-
   let compile_value_declaration { name; signature; _ } =
     let internals =
       Create_module.internal_module ~generated:P.generated_module
@@ -259,4 +260,4 @@ let generate_py_stub ~interface_only ~settings ~lib_name ~generated ~types
   String.concat "\n\n"
     ([ prelude ]
     @ Pydsl.generate_imports stub
-    @ [ Pydsl.(show_stub (add_quote_hints stub)) ])
+    @ [ Pydsl.(show_stub (quote_forward_references stub)) ])

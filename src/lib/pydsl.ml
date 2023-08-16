@@ -1,4 +1,3 @@
-let arg_var = "_x" (* canonical argument name used for binders *)
 let quote_char = ':'
 
 type lvalue =
@@ -10,7 +9,7 @@ type lvalue =
 and shape_annot = Same_shape of lvalue
 
 and expr =
-  | Ellipsis_expr  (** ... *)
+  | Ellipsis_expr
   | None_constant
   | String_constant of string
   | Lvalue of lvalue
@@ -18,9 +17,7 @@ and expr =
   | Create_tuple of expr list * shape_annot option
   | Lambda of string list * expr
   | Case_not_none of { tested : expr; expr : expr }
-      (** <expr> if <tested> is not None else None *)
   | Comprehension of { var : string; list : expr; expr : expr }
-      (** <expr> for <var> in <list> *)
   | Dataclass_of_dict of string * lvalue
   | Dict_of_dataclass of lvalue
   | Create_dataclass of string * (string * expr) list * shape_annot option
@@ -28,7 +25,7 @@ and expr =
   | Enum_value of lvalue
   | Str_cases of lvalue * (string * expr) list
   | Type_cases of lvalue * (string * expr) list
-  | Let_in of { var : string; assigned : expr; expr : expr }
+  | Let_in of { var : string; assigned : expr; expr : expr }  (** *)
 
 and instr = Assign of string * expr | Return of expr | Ellipsis
 and block = instr list
@@ -281,7 +278,7 @@ let show_item_lines = function
 let show_item i = concat "\n" (show_item_lines i)
 let show_stub s = concat "\n\n" (List.map show_item s)
 
-let add_quote_hints stub =
+let quote_forward_references stub =
   let defined = Hashtbl.create 100 in
   let add_defined s = Hashtbl.add defined s () in
   let is_defined s = Hashtbl.mem defined s in
@@ -437,3 +434,6 @@ let optimize_stub stub =
     end
   in
   visitor#visit_stub () stub
+
+(* Remove warnings *)
+let _ = equal_stub
