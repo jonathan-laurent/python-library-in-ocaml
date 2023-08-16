@@ -25,7 +25,7 @@ and expr =
   | Enum_value of lvalue
   | Str_cases of lvalue * (string * expr) list
   | Type_cases of lvalue * (string * expr) list
-  | Let_in of { var : string; assigned : expr; expr : expr }  (** *)
+  | Let_in of { var : string; assigned : expr; expr : expr }
 
 and instr = Assign of string * expr | Return of expr | Ellipsis
 and block = instr list

@@ -16,8 +16,6 @@ type variant_args =
   | Labeled of (string * type_expr) list
 [@@deriving show]
 
-(** {1 Type declarations} *)
-
 type type_definition =
   | Alias of type_expr
   | Record of (string * type_expr) list
@@ -32,16 +30,11 @@ type type_declaration = {
 }
 [@@deriving show]
 
-(** {1 Value declarations}*)
-
 type arg_kind = Positional | Keyword | Optional [@@deriving show]
 
 type value_signature =
   | Constant of type_expr
   | Function of { args : (string * arg_kind * type_expr) list; ret : type_expr }
-(* Invariant: positional arguments must come first, then named arguments and
-   finally optional arguments. *)
-(* Invariant: optional arguments must have an option type *)
 [@@deriving show]
 
 type value = {

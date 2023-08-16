@@ -38,6 +38,9 @@ type arg_kind = Positional | Keyword | Optional
 type value_signature =
   | Constant of type_expr
   | Function of { args : (string * arg_kind * type_expr) list; ret : type_expr }
+      (** - Invariant 1: positional arguments must come first, then named
+            arguments and finally optional arguments.
+          - Invariant 2: optional arguments must have an option type. *)
 
 type value = {
   convert : unit -> Py.Object.t;
