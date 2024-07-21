@@ -142,11 +142,8 @@ and python_of t expr =
   | _ -> [%expr [%python_of: [%t t]] [%e expr]]
 
 let make_python_function ~loc ~args ~ret ~name =
-  (* Py.Callable.of_function ~name:... ~docstring:...
-     (fun args ->
-       let arg0 = [%of_python] args.(0) in
-       ... in
-       [%python_of: ...] (f arg0...)) *)
+  (* Py.Callable.of_function ~name:... ~docstring:... (fun args -> let arg0 =
+     [%of_python] args.(0) in ... in [%python_of: ...] (f arg0...)) *)
   let n = List.length args in
   assert (n > 0);
   let body =
@@ -205,11 +202,9 @@ let python_export ~loc ~rec_flag ~name ~args ~ret ~signature ~expr =
   let pyobject = make_python_object ~loc ~args ~ret ~name in
   let name_pat = ppat_var ~loc (Loc.make ~loc name) in
   let name_longident = Loc.make ~loc (Longident.Lident name) in
-  (* let myfun =
-     let rec myfun x y = ... in
-     let () = Python_libgen.(register_python_value {
-       convert=...; name=...; doc=...; signature=...}) in
-     myfun *)
+  (* let myfun = let rec myfun x y = ... in let () =
+     Python_libgen.(register_python_value { convert=...; name=...; doc=...;
+     signature=...}) in myfun *)
   pstr_value ~loc Nonrecursive
     [
       value_binding_no_warn ~loc ~pat:name_pat
